@@ -4,310 +4,747 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>GLADIATOR — Tattoo Studio Prague</title>
+
+<!-- ╔══════════════════════════════════════╗
+     ║  CDN LOAD ORDER — DO NOT REORDER   ║
+     ║  All sync so globals exist before  ║
+     ║  any inline <script> runs.         ║
+     ╚══════════════════════════════════════╝ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+
 <style>
-:root{--red:#cc1111;--red-hot:#ff2222;--off-white:#f0ece2;--dark:#080808;--mid:#111111;--border:rgba(255,255,255,0.07);}
+/* ══════════════════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════════════════ */
+:root{
+  --red:       #cc1111;
+  --red-hot:   #ff2222;
+  --off-white: #f0ece2;
+  --dark:      #080808;
+  --mid:       #0e0e0e;
+  --border:    rgba(255,255,255,0.07);
+  --font-d:    'Bebas Neue', sans-serif;
+  --font-s:    'Cormorant Garamond', serif;
+  --font-m:    'JetBrains Mono', monospace;
+}
+
+/* ══ RESET ══ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html,body{overflow-x:hidden;max-width:100vw;background:#000;scroll-behavior:smooth;}
-body{font-family:'JetBrains Mono',monospace;color:var(--off-white);}
-#gladiator-canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;display:block;}
+html{scroll-behavior:smooth;}
+html,body{overflow-x:hidden;max-width:100vw;background:#000;}
+body{font-family:var(--font-m);color:var(--off-white);}
+
+/* ══ CANVAS — mathematically centred, fixed full-viewport ══ */
+#gladiator-canvas{
+  position:fixed;
+  top:0; left:0;
+  width:100vw !important;
+  height:100vh !important;
+  z-index:0;
+  pointer-events:none;
+  display:block;
+}
+
+/* ══ PAGE CONTENT ══ */
 #scroll-content{position:relative;z-index:1;}
-body::before{content:'';position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.32;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");}
-#scroll-bar{position:fixed;top:0;left:0;height:2px;width:0%;background:var(--red);box-shadow:0 0 8px var(--red),0 0 20px rgba(204,17,17,.4);z-index:200;transition:width .08s linear;}
-#wf-hint{position:fixed;bottom:1.5rem;right:1.8rem;z-index:50;font-size:.48rem;letter-spacing:.3em;color:rgba(240,236,226,.16);text-transform:uppercase;pointer-events:none;transition:opacity .6s ease,color .6s ease;}
+
+/* ══ NOISE GRAIN ══ */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  z-index:2;pointer-events:none;opacity:.28;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* ══ SCROLL PROGRESS ══ */
+#scroll-bar{
+  position:fixed;top:0;left:0;
+  height:2px;width:0%;
+  background:var(--red);
+  box-shadow:0 0 8px var(--red),0 0 22px rgba(204,17,17,.38);
+  z-index:300;
+  transition:width .07s linear;
+}
+
+/* ══ WIREFRAME HINT ══ */
+#wf-hint{
+  position:fixed;bottom:1.5rem;right:1.8rem;
+  z-index:50;font-size:.46rem;letter-spacing:.3em;
+  color:rgba(240,236,226,.14);text-transform:uppercase;
+  pointer-events:none;transition:color .6s ease;
+}
 #wf-hint.active{color:rgba(204,17,17,.55);}
-#site-header{position:fixed;top:0;left:0;right:0;z-index:100;height:68px;padding:0 2.5rem;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);background:rgba(4,4,4,.72);border-bottom:1px solid var(--border);transform:translateY(0);transition:transform .32s cubic-bezier(.4,0,.2,1),background .4s ease;}
+
+/* ══ DATA STREAM CANVAS (particle overlay for horizontal scroll) ══ */
+#stream-canvas{
+  position:fixed;top:0;left:0;
+  width:100vw;height:100vh;
+  z-index:0;pointer-events:none;display:block;
+  opacity:0;transition:opacity .6s ease;
+}
+#stream-canvas.active{opacity:1;}
+
+/* ══════════════════════════════════════════════════
+   HEADER  — fixed, glassmorphism
+══════════════════════════════════════════════════ */
+#site-header{
+  position:fixed;top:0;left:0;width:100%;
+  z-index:200;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 3rem;height:68px;
+  background:rgba(0,0,0,.60);
+  backdrop-filter:blur(18px) saturate(160%);
+  -webkit-backdrop-filter:blur(18px) saturate(160%);
+  border-bottom:1px solid var(--border);
+  transform:translateY(0);
+  transition:transform .32s cubic-bezier(.4,0,.2,1);
+}
 #site-header.hide{transform:translateY(-100%);}
-.logo-wrap{text-decoration:none;}
-.logo-main{font-family:'Bebas Neue',sans-serif;font-size:1.75rem;letter-spacing:.18em;color:var(--off-white);display:block;line-height:1;}
-.logo-sub{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:.28em;color:var(--red);display:block;margin-top:1px;text-transform:uppercase;}
+
+.logo-wrap{text-decoration:none;display:flex;flex-direction:column;}
+.logo-main{font-family:var(--font-d);font-size:1.75rem;letter-spacing:.18em;color:var(--off-white);line-height:1;}
+.logo-sub{font-family:var(--font-m);font-size:.48rem;letter-spacing:.28em;color:var(--red);text-transform:uppercase;margin-top:2px;}
+
 .lang-switcher{display:flex;gap:2px;}
-.lang-btn{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.22em;padding:5px 11px;border:1px solid transparent;background:transparent;color:rgba(240,236,226,.4);cursor:pointer;text-transform:uppercase;transition:all .22s ease;}
+.lang-btn{
+  font-family:var(--font-m);font-size:.56rem;letter-spacing:.22em;
+  padding:5px 11px;border:1px solid transparent;background:transparent;
+  color:rgba(240,236,226,.4);cursor:pointer;text-transform:uppercase;
+  transition:all .22s ease;
+}
 .lang-btn:hover{color:var(--off-white);border-color:var(--border);background:rgba(255,255,255,.04);}
 .lang-btn.active{color:var(--red);border-color:rgba(204,17,17,.35);}
-.section-label{font-family:'JetBrains Mono',monospace;font-size:.54rem;letter-spacing:.42em;color:var(--red);text-transform:uppercase;margin-bottom:.9rem;}
-.section-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.8rem,6.5vw,6rem);line-height:.95;letter-spacing:.04em;color:var(--off-white);}
-.red-rule{width:56px;height:1px;background:var(--red);margin:1.4rem 0;}
-#hero{min-height:100vh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 5vw 8vh 6vw;position:relative;}
-.hero-eyebrow{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.38em;color:var(--red);text-transform:uppercase;margin-bottom:1.1rem;opacity:0;transform:translateY(14px);}
-.hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(4.2rem,12.5vw,12.5rem);line-height:.88;letter-spacing:.03em;color:var(--off-white);opacity:0;transform:translateY(50px);}
+
+/* ══════════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════════ */
+#hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:0 5vw 8vh 6vw;
+  position:relative;
+}
+.hero-eyebrow{
+  font-family:var(--font-m);font-size:.56rem;letter-spacing:.4em;
+  color:var(--red);text-transform:uppercase;margin-bottom:1.1rem;
+  opacity:0;transform:translateY(14px);
+}
+.hero-title{
+  font-family:var(--font-d);
+  font-size:clamp(4rem,12.5vw,12.5rem);
+  line-height:.88;letter-spacing:.03em;color:var(--off-white);
+  opacity:0;transform:translateY(52px);
+}
 .hero-title .accent{color:var(--red);display:block;}
-.hero-sub{font-family:'Cormorant Garamond',serif;font-size:clamp(1rem,2.1vw,1.55rem);font-style:italic;font-weight:300;color:rgba(240,236,226,.5);letter-spacing:.09em;margin-top:1.3rem;opacity:0;}
+.hero-sub{
+  font-family:var(--font-s);
+  font-size:clamp(1rem,2vw,1.52rem);
+  font-style:italic;font-weight:300;
+  color:rgba(240,236,226,.5);letter-spacing:.09em;margin-top:1.3rem;
+  opacity:0;
+}
 .hero-cta-row{display:flex;align-items:center;gap:2.5rem;margin-top:2.8rem;opacity:0;}
-.scroll-hint{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:.3em;color:rgba(240,236,226,.28);text-transform:uppercase;display:flex;align-items:center;gap:.8rem;}
-.scroll-line{width:38px;height:1px;background:linear-gradient(to right,var(--red),transparent);display:inline-block;}
-.btn-primary{position:relative;font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dark);background:var(--off-white);padding:13px 30px;border:none;cursor:pointer;overflow:hidden;text-decoration:none;display:inline-block;transition:color .38s ease,transform .18s ease;}
-.btn-primary::before{content:'';position:absolute;inset:0;background:var(--red);transform:translateX(-102%);transition:transform .44s cubic-bezier(.4,0,.2,1);}
+.scroll-hint{
+  font-family:var(--font-m);font-size:.48rem;letter-spacing:.3em;
+  color:rgba(240,236,226,.26);text-transform:uppercase;
+  display:flex;align-items:center;gap:.8rem;
+}
+.scroll-line{width:36px;height:1px;background:linear-gradient(to right,var(--red),transparent);display:inline-block;}
+
+/* ══════════════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════════════ */
+.btn-primary{
+  position:relative;font-family:var(--font-m);font-size:.6rem;
+  letter-spacing:.26em;text-transform:uppercase;
+  color:var(--dark);background:var(--off-white);
+  padding:13px 30px;border:none;cursor:pointer;
+  overflow:hidden;text-decoration:none;display:inline-block;
+  transition:color .38s ease,transform .18s ease;
+}
+.btn-primary::before{
+  content:'';position:absolute;inset:0;background:var(--red);
+  transform:translateX(-102%);
+  transition:transform .44s cubic-bezier(.4,0,.2,1);
+}
 .btn-primary:hover::before{transform:translateX(0);}
 .btn-primary:hover{color:var(--off-white);transform:scale(1.02);}
 .btn-primary span{position:relative;z-index:1;}
-.booking-bar{background:var(--red);padding:.95rem 5vw;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;}
-.booking-bar-text{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.24em;text-transform:uppercase;color:var(--off-white);}
-.btn-booking{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--red);background:var(--off-white);padding:9px 20px;border:none;cursor:pointer;white-space:nowrap;text-decoration:none;transition:background .22s ease,color .22s ease,transform .15s ease;}
+
+.btn-booking{
+  font-family:var(--font-m);font-size:.56rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--red);background:var(--off-white);padding:9px 20px;
+  border:none;cursor:pointer;white-space:nowrap;text-decoration:none;
+  transition:background .22s ease,color .22s ease,transform .15s ease;
+}
 .btn-booking:hover{background:var(--dark);color:var(--off-white);transform:scale(1.03);}
-#about{min-height:88vh;padding:11vh 6vw;display:grid;grid-template-columns:1fr 1fr;gap:6vw;align-items:center;}
+
+/* ══════════════════════════════════════════════════
+   BOOKING BAR
+══════════════════════════════════════════════════ */
+.booking-bar{
+  background:var(--red);padding:.9rem 5vw;
+  display:flex;justify-content:space-between;align-items:center;
+  gap:1rem;flex-wrap:wrap;
+}
+.booking-bar-text{font-family:var(--font-m);font-size:.56rem;letter-spacing:.24em;text-transform:uppercase;color:var(--off-white);}
+
+/* ══════════════════════════════════════════════════
+   SHARED SECTION TYPOGRAPHY
+══════════════════════════════════════════════════ */
+.section-label{font-family:var(--font-m);font-size:.52rem;letter-spacing:.42em;color:var(--red);text-transform:uppercase;margin-bottom:.85rem;}
+.section-title{font-family:var(--font-d);font-size:clamp(2.6rem,6vw,5.8rem);line-height:.95;letter-spacing:.04em;color:var(--off-white);}
+.red-rule{width:54px;height:1px;background:var(--red);margin:1.3rem 0;}
+
+/* ══════════════════════════════════════════════════
+   ABOUT
+══════════════════════════════════════════════════ */
+#about{
+  min-height:88vh;padding:11vh 6vw;
+  display:grid;grid-template-columns:1fr 1fr;gap:6vw;align-items:center;
+}
 @media(max-width:768px){#about{grid-template-columns:1fr;}}
-.about-body{font-family:'Cormorant Garamond',serif;font-size:clamp(1.05rem,1.7vw,1.3rem);font-weight:300;line-height:1.82;color:rgba(240,236,226,.68);margin-top:1.4rem;}
+.about-body{font-family:var(--font-s);font-size:clamp(1.05rem,1.7vw,1.3rem);font-weight:300;line-height:1.82;color:rgba(240,236,226,.68);margin-top:1.4rem;}
 .stat-row{display:flex;gap:2.8rem;margin-top:2.8rem;padding-top:2rem;border-top:1px solid var(--border);}
-.stat-num{font-family:'Bebas Neue',sans-serif;font-size:3.2rem;color:var(--red);line-height:1;display:block;}
-.stat-label{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:.24em;color:rgba(240,236,226,.35);text-transform:uppercase;margin-top:.35rem;display:block;}
+.stat-num{font-family:var(--font-d);font-size:3.2rem;color:var(--red);line-height:1;display:block;}
+.stat-label{font-family:var(--font-m);font-size:.48rem;letter-spacing:.24em;color:rgba(240,236,226,.33);text-transform:uppercase;margin-top:.35rem;display:block;}
 .about-img-wrap{position:relative;aspect-ratio:3/4;overflow:hidden;}
 .about-img-wrap img{width:100%;height:100%;object-fit:cover;filter:grayscale(30%) contrast(1.1);transition:transform .75s cubic-bezier(.4,0,.2,1);}
 .about-img-wrap:hover img{transform:scale(1.04);}
 .about-img-wrap::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(8,8,8,.58) 0%,transparent 52%);pointer-events:none;}
-.about-img-border{position:absolute;top:-10px;right:-10px;width:100%;height:100%;border:1px solid rgba(204,17,17,.22);pointer-events:none;z-index:2;}
-#services{padding:11vh 4vw;}
-.bento-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:3.5rem;padding:0 1vw;flex-wrap:wrap;gap:1rem;}
-.bento-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;}
-.bento-card{position:relative;background:var(--mid);overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.04);transition:border-color .3s ease;transform-style:preserve-3d;will-change:transform;}
-.bento-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--bx,50%) var(--by,50%),rgba(204,17,17,.18) 0%,transparent 62%);opacity:0;transition:opacity .38s ease;pointer-events:none;z-index:1;}
+.about-img-border{position:absolute;top:-10px;right:-10px;width:100%;height:100%;border:1px solid rgba(204,17,17,.2);pointer-events:none;z-index:2;}
+
+/* ══════════════════════════════════════════════════
+   SERVICES — HORIZONTAL SCROLL SECTION
+══════════════════════════════════════════════════ */
+
+/* The outer wrapper is the scroll pin trigger — exactly 100vh tall in the viewport */
+#services-section{
+  position:relative;
+  /* height is set by GSAP "end: +=3000" — we just need overflow hidden on body level */
+  overflow:hidden;
+}
+
+/* Pin wrapper — GSAP pins this at viewport top */
+#services-pin{
+  position:relative;
+  width:100%;height:100vh;
+  overflow:hidden;
+  display:flex;align-items:center;
+}
+
+/* Section header — fixed left column inside the pinned viewport */
+#services-header{
+  position:absolute;
+  left:6vw;top:50%;transform:translateY(-50%);
+  z-index:10;width:22vw;min-width:200px;
+  pointer-events:none;
+}
+
+/* The wide horizontal strip of cards */
+#horizontal-container{
+  display:flex;
+  flex-direction:row;
+  gap:2.4rem;
+  /* total width: header column (22vw) + 8 cards + gaps.
+     We push it right by 28vw so first card appears at right side of header */
+  padding-left:32vw;
+  padding-right:8vw;
+  height:100vh;
+  align-items:center;
+  /* width must exceed viewport to allow horizontal travel */
+  width:max-content;
+  will-change:transform;
+}
+
+/* Individual bento card — now vertical rectangles in a horizontal row */
+.bento-card{
+  position:relative;
+  width:clamp(280px,22vw,360px);
+  height:72vh;
+  background:var(--mid);
+  overflow:hidden;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.05);
+  flex-shrink:0;
+  transition:border-color .3s ease;
+  transform-style:preserve-3d;
+  will-change:transform;
+}
+.bento-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at var(--bx,50%) var(--by,50%),rgba(204,17,17,.18) 0%,transparent 62%);
+  opacity:0;transition:opacity .38s ease;pointer-events:none;z-index:1;
+}
 .bento-card:hover::before{opacity:1;}
-.bento-card:hover{border-color:rgba(204,17,17,.32);}
-.bc-1{grid-column:span 5;grid-row:span 2;min-height:380px;}
-.bc-2{grid-column:span 4;min-height:188px;}
-.bc-3{grid-column:span 3;min-height:188px;}
-.bc-4{grid-column:span 4;min-height:188px;}
-.bc-5{grid-column:span 3;min-height:188px;}
-.bc-6{grid-column:span 4;grid-row:span 2;min-height:380px;}
-.bc-7{grid-column:span 5;min-height:188px;}
-.bc-8{grid-column:span 3;min-height:188px;}
-@media(max-width:900px){.bc-1,.bc-2,.bc-3,.bc-4,.bc-5,.bc-6,.bc-7,.bc-8{grid-column:span 12;grid-row:span 1;min-height:200px;}}
-.bento-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.18;transition:opacity .5s ease,transform .55s ease;}
-.bento-card:hover .bento-bg{opacity:.3;transform:scale(1.05);}
-.bento-num{position:absolute;top:1rem;right:1.4rem;font-family:'Bebas Neue',sans-serif;font-size:4.5rem;color:rgba(255,255,255,.04);line-height:1;transition:color .4s ease;z-index:1;}
+.bento-card:hover{border-color:rgba(204,17,17,.35);}
+
+.bento-bg{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center;
+  opacity:.15;transition:opacity .5s ease,transform .55s ease;
+}
+.bento-card:hover .bento-bg{opacity:.28;transform:scale(1.06);}
+
+.bento-num{
+  position:absolute;top:1.2rem;right:1.4rem;
+  font-family:var(--font-d);font-size:5rem;
+  color:rgba(255,255,255,.04);line-height:1;
+  transition:color .4s ease;z-index:1;
+}
 .bento-card:hover .bento-num{color:rgba(204,17,17,.1);}
-.bento-inner{position:relative;z-index:2;height:100%;min-height:inherit;padding:1.8rem;display:flex;flex-direction:column;justify-content:flex-end;}
-.bento-icon{font-size:1.4rem;margin-bottom:.7rem;display:block;filter:grayscale(1) brightness(.55);transition:filter .3s ease;}
+
+.bento-inner{
+  position:relative;z-index:2;height:100%;
+  padding:1.8rem;display:flex;flex-direction:column;justify-content:flex-end;
+}
+.bento-icon{font-size:1.5rem;margin-bottom:.8rem;display:block;filter:grayscale(1) brightness(.55);transition:filter .3s ease;}
 .bento-card:hover .bento-icon{filter:none;}
-.bento-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.25rem,2vw,1.85rem);letter-spacing:.06em;color:var(--off-white);line-height:1;margin-bottom:.5rem;}
-.bento-desc{font-family:'Cormorant Garamond',serif;font-size:clamp(.82rem,1.1vw,.96rem);font-style:italic;color:rgba(240,236,226,.52);line-height:1.5;max-width:88%;filter:blur(7px);opacity:0;transform:translateY(7px);transition:filter .48s ease,opacity .48s ease,transform .48s ease;}
+.bento-name{font-family:var(--font-d);font-size:clamp(1.4rem,2.2vw,2rem);letter-spacing:.06em;color:var(--off-white);line-height:1;margin-bottom:.5rem;}
+.bento-desc{
+  font-family:var(--font-s);font-size:.96rem;font-style:italic;
+  color:rgba(240,236,226,.52);line-height:1.55;
+  filter:blur(6px);opacity:0;transform:translateY(7px);
+  transition:filter .48s ease,opacity .48s ease,transform .48s ease;
+}
 .bento-card:hover .bento-desc{filter:blur(0);opacity:1;transform:translateY(0);}
-.bento-price{font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:.2em;color:var(--red);text-transform:uppercase;margin-top:.7rem;opacity:0;transition:opacity .4s .08s ease;}
+.bento-price{
+  font-family:var(--font-m);font-size:.5rem;letter-spacing:.2em;
+  color:var(--red);text-transform:uppercase;margin-top:.8rem;
+  opacity:0;transition:opacity .4s .08s ease;
+}
 .bento-card:hover .bento-price{opacity:1;}
+
+/* Horizontal scroll indicator */
+#horiz-indicator{
+  position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);
+  z-index:20;display:flex;align-items:center;gap:.8rem;
+  font-family:var(--font-m);font-size:.46rem;letter-spacing:.3em;
+  color:rgba(240,236,226,.25);text-transform:uppercase;
+  pointer-events:none;
+}
+.horiz-arrow{
+  width:40px;height:1px;
+  background:linear-gradient(to right,transparent,var(--red));
+  display:inline-block;
+  animation:arrowPulse 1.8s ease-in-out infinite;
+}
+@keyframes arrowPulse{0%,100%{opacity:.3;transform:scaleX(.7);}50%{opacity:1;transform:scaleX(1);}}
+
+/* ══════════════════════════════════════════════════
+   MASTERS
+══════════════════════════════════════════════════ */
 #masters{padding:11vh 6vw;}
 .masters-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:3.8rem;}
 @media(max-width:768px){.masters-grid{grid-template-columns:1fr;}}
 .master-card{position:relative;overflow:hidden;aspect-ratio:2/3;cursor:pointer;}
 .master-card img{width:100%;height:100%;object-fit:cover;filter:grayscale(100%) contrast(1.05);transition:filter .6s ease,transform .68s cubic-bezier(.4,0,.2,1);display:block;}
 .master-card:hover img{filter:grayscale(0%) contrast(1.12);transform:scale(1.05);}
-.master-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.08) 60%);display:flex;flex-direction:column;justify-content:flex-end;padding:1.8rem;}
-.master-name{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:.08em;line-height:1;color:var(--off-white);}
-.master-style{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:.88rem;color:var(--red);margin-top:.3rem;letter-spacing:.05em;}
-.master-years{font-family:'JetBrains Mono',monospace;font-size:.49rem;letter-spacing:.24em;color:rgba(240,236,226,.32);text-transform:uppercase;margin-top:.45rem;}
+.master-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.06) 62%);display:flex;flex-direction:column;justify-content:flex-end;padding:1.8rem;}
+.master-name{font-family:var(--font-d);font-size:1.9rem;letter-spacing:.08em;line-height:1;color:var(--off-white);}
+.master-style{font-family:var(--font-s);font-style:italic;font-size:.88rem;color:var(--red);margin-top:.3rem;}
+.master-years{font-family:var(--font-m);font-size:.47rem;letter-spacing:.24em;color:rgba(240,236,226,.3);text-transform:uppercase;margin-top:.45rem;}
 .master-top{position:absolute;top:0;left:0;right:0;padding:1.4rem 1.8rem;background:linear-gradient(to bottom,rgba(0,0,0,.68) 0%,transparent 100%);transform:translateY(-100%);transition:transform .44s cubic-bezier(.4,0,.2,1);}
 .master-card:hover .master-top{transform:translateY(0);}
-.master-insta{font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:.2em;color:var(--red);}
+.master-insta{font-family:var(--font-m);font-size:.5rem;letter-spacing:.2em;color:var(--red);}
+
+/* ══════════════════════════════════════════════════
+   TESTIMONIALS
+══════════════════════════════════════════════════ */
 #testimonials{padding:10vh 6vw;border-top:1px solid var(--border);}
 .t-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:3.8rem;}
 @media(max-width:768px){.t-grid{grid-template-columns:1fr;}}
 .t-card{padding:2.4rem;background:rgba(14,14,14,.55);border:1px solid var(--border);transition:border-color .3s ease;}
 .t-card:hover{border-color:rgba(204,17,17,.22);}
-.t-mark{font-family:'Cormorant Garamond',serif;font-size:4.5rem;color:rgba(204,17,17,.13);line-height:.75;margin-bottom:.4rem;}
-.t-text{font-family:'Cormorant Garamond',serif;font-size:1.08rem;font-style:italic;font-weight:300;line-height:1.72;color:rgba(240,236,226,.68);margin-bottom:1.4rem;}
-.t-author{font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:.2em;color:var(--red);text-transform:uppercase;}
-.t-city{font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:.2em;color:rgba(240,236,226,.22);margin-top:.25rem;}
+.t-mark{font-family:var(--font-s);font-size:4.5rem;color:rgba(204,17,17,.13);line-height:.75;margin-bottom:.4rem;}
+.t-text{font-family:var(--font-s);font-size:1.06rem;font-style:italic;font-weight:300;line-height:1.72;color:rgba(240,236,226,.68);margin-bottom:1.4rem;}
+.t-author{font-family:var(--font-m);font-size:.5rem;letter-spacing:.2em;color:var(--red);text-transform:uppercase;}
+.t-city{font-family:var(--font-m);font-size:.46rem;letter-spacing:.2em;color:rgba(240,236,226,.2);margin-top:.25rem;}
+
+/* ══════════════════════════════════════════════════
+   LOCATION
+══════════════════════════════════════════════════ */
 #location{padding:10vh 6vw;border-top:1px solid var(--border);}
 .loc-grid{display:grid;grid-template-columns:1fr 1.55fr;gap:4vw;margin-top:3.8rem;align-items:start;}
 @media(max-width:768px){.loc-grid{grid-template-columns:1fr;}}
 .loc-info>*+*{margin-top:1.7rem;}
-.loc-label{font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:.3em;color:var(--red);text-transform:uppercase;margin-bottom:.38rem;}
-.loc-val{font-family:'Cormorant Garamond',serif;font-size:1.08rem;font-weight:300;color:rgba(240,236,226,.78);line-height:1.52;}
+.loc-label{font-family:var(--font-m);font-size:.46rem;letter-spacing:.3em;color:var(--red);text-transform:uppercase;margin-bottom:.38rem;}
+.loc-val{font-family:var(--font-s);font-size:1.06rem;font-weight:300;color:rgba(240,236,226,.78);line-height:1.52;}
 .map-wrap{position:relative;aspect-ratio:16/10;overflow:hidden;border:1px solid var(--border);}
-.map-wrap iframe{width:100%;height:100%;border:none;display:block;filter:invert(92%) hue-rotate(180deg) grayscale(18%) contrast(1.12) brightness(.92);}
-.map-badge{position:absolute;top:1rem;left:1rem;background:rgba(6,6,6,.88);padding:7px 13px;font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:.2em;color:var(--red);text-transform:uppercase;border:1px solid rgba(204,17,17,.22);}
+.map-wrap iframe{width:100%;height:100%;border:none;display:block;filter:invert(92%) hue-rotate(180deg) grayscale(18%) contrast(1.12) brightness(.9);}
+.map-badge{position:absolute;top:1rem;left:1rem;background:rgba(5,5,5,.9);padding:7px 13px;font-family:var(--font-m);font-size:.5rem;letter-spacing:.2em;color:var(--red);text-transform:uppercase;border:1px solid rgba(204,17,17,.22);}
+
+/* ══════════════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════════════ */
 footer{padding:5vh 6vw 3vh;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:3vw;align-items:start;}
 @media(max-width:768px){footer{grid-template-columns:1fr;gap:2rem;}}
-.footer-logo{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;letter-spacing:.15em;color:var(--off-white);}
-.footer-tagline{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:.88rem;color:rgba(240,236,226,.32);margin-top:.45rem;}
+.footer-logo{font-family:var(--font-d);font-size:2.1rem;letter-spacing:.15em;color:var(--off-white);}
+.footer-tagline{font-family:var(--font-s);font-style:italic;font-size:.88rem;color:rgba(240,236,226,.3);margin-top:.45rem;}
 .footer-socials{display:flex;gap:1rem;margin-top:1.4rem;}
-.footer-soc{font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:.2em;color:rgba(240,236,226,.28);text-decoration:none;text-transform:uppercase;transition:color .22s ease;}
+.footer-soc{font-family:var(--font-m);font-size:.5rem;letter-spacing:.2em;color:rgba(240,236,226,.26);text-decoration:none;text-transform:uppercase;transition:color .22s ease;}
 .footer-soc:hover{color:var(--red);}
-.footer-nav-title{font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:.3em;color:var(--red);text-transform:uppercase;margin-bottom:1rem;}
-.footer-link{display:block;font-family:'Cormorant Garamond',serif;font-size:.93rem;color:rgba(240,236,226,.42);text-decoration:none;margin-bottom:.5rem;transition:color .22s ease;}
+.footer-nav-title{font-family:var(--font-m);font-size:.46rem;letter-spacing:.3em;color:var(--red);text-transform:uppercase;margin-bottom:1rem;}
+.footer-link{display:block;font-family:var(--font-s);font-size:.92rem;color:rgba(240,236,226,.4);text-decoration:none;margin-bottom:.5rem;transition:color .22s ease;}
 .footer-link:hover{color:var(--off-white);}
-.footer-copy{grid-column:1/-1;padding-top:2rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:.2em;color:rgba(240,236,226,.18);text-transform:uppercase;}
+.footer-copy{grid-column:1/-1;padding-top:2rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;font-family:var(--font-m);font-size:.46rem;letter-spacing:.2em;color:rgba(240,236,226,.16);text-transform:uppercase;}
+
+/* ══════════════════════════════════════════════════
+   SCROLL REVEAL INITIAL STATES
+══════════════════════════════════════════════════ */
 .rv-up{opacity:0;transform:translateY(52px);}
 .rv-lft{opacity:0;transform:translateX(-42px);}
+
+/* ══ INTERACTIVE ══ */
 a,button{cursor:pointer;}
-@media(max-width:600px){#gladiator-canvas{opacity:.5;}.hero-title{font-size:clamp(3.2rem,17vw,6rem);}}
+
+/* ══ MOBILE ══ */
+@media(max-width:600px){
+  #gladiator-canvas{opacity:.45;}
+  .hero-title{font-size:clamp(3rem,17vw,6rem);}
+  #horizontal-container{padding-left:6vw;gap:1.4rem;}
+  .bento-card{width:80vw;height:75vh;}
+  #services-header{position:relative;left:unset;top:unset;transform:none;width:100%;padding:2rem 6vw 1rem;}
+}
 </style>
 </head>
 <body>
 
+<!-- ═══ PARTICLE DATA-STREAM CANVAS ═══ -->
+<canvas id="stream-canvas"></canvas>
+
+<!-- ═══ 3D HELMET CANVAS ═══ -->
 <canvas id="gladiator-canvas"></canvas>
+
+<!-- ═══ SCROLL PROGRESS ═══ -->
 <div id="scroll-bar"></div>
+
+<!-- ═══ WIREFRAME HINT ═══ -->
 <div id="wf-hint">[ wireframe active ]</div>
 
+<!-- ═══════════════════════════════════════════════
+     PAGE CONTENT
+═══════════════════════════════════════════════ -->
 <div id="scroll-content">
 
-<header id="site-header">
-  <a href="#" class="logo-wrap">
-    <span class="logo-main">GLADIATOR</span>
-    <span class="logo-sub">Tattoo Studio &mdash; Praha</span>
-  </a>
-  <nav class="lang-switcher" aria-label="Language">
-    <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
-    <button class="lang-btn"        data-lang="cs" onclick="setLang('cs')">CZ</button>
-    <button class="lang-btn"        data-lang="ru" onclick="setLang('ru')">RU</button>
-  </nav>
-</header>
+  <!-- ── HEADER (fixed top-0 left-0 w-full z-50 glassmorphism) ── -->
+  <header id="site-header">
+    <a href="#" class="logo-wrap">
+      <span class="logo-main">GLADIATOR</span>
+      <span class="logo-sub">Tattoo Studio &mdash; Praha</span>
+    </a>
+    <nav class="lang-switcher" aria-label="Language">
+      <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn"        data-lang="cs" onclick="setLang('cs')">CZ</button>
+      <button class="lang-btn"        data-lang="ru" onclick="setLang('ru')">RU</button>
+    </nav>
+  </header>
 
-<section id="hero">
-  <p class="hero-eyebrow" data-i18n="eyebrow">&mdash; Prague&rsquo;s Premier Ink Atelier &mdash;</p>
-  <h1 class="hero-title" id="hero-title">
-    <span data-i18n="h1">Forged</span>
-    <span class="accent" data-i18n="h2">In The</span>
-    <span data-i18n="h3">Arena.</span>
-  </h1>
-  <p class="hero-sub" data-i18n="heroSub">Brutal Luxury. Permanent Mastery. No Compromise.</p>
-  <div class="hero-cta-row">
-    <a href="#location" class="btn-primary"><span data-i18n="bookNow">Book Your Session</span></a>
-    <div class="scroll-hint">
-      <span class="scroll-line"></span>
-      <span data-i18n="scrollDown">Scroll Down</span>
+  <!-- ── HERO ── -->
+  <section id="hero">
+    <p class="hero-eyebrow" data-i18n="eyebrow">&mdash; Prague&rsquo;s Premier Ink Atelier &mdash;</p>
+    <h1 class="hero-title" id="hero-title">
+      <span data-i18n="h1">Forged</span>
+      <span class="accent" data-i18n="h2">In The</span>
+      <span data-i18n="h3">Arena.</span>
+    </h1>
+    <p class="hero-sub" data-i18n="heroSub">Brutal Luxury. Permanent Mastery. No Compromise.</p>
+    <div class="hero-cta-row">
+      <a href="#location" class="btn-primary"><span data-i18n="bookNow">Book Your Session</span></a>
+      <div class="scroll-hint">
+        <span class="scroll-line"></span>
+        <span data-i18n="scrollDown">Scroll Down</span>
+      </div>
     </div>
+  </section>
+
+  <!-- ── BOOKING BAR ── -->
+  <div class="booking-bar rv-up">
+    <span class="booking-bar-text" data-i18n="bbText">Limited appointments &mdash; Currently booking 6 weeks out</span>
+    <a href="mailto:ink@gladiatorprague.cz" class="btn-booking" data-i18n="bbCta">Reserve Your Slot &rarr;</a>
   </div>
-</section>
 
-<div class="booking-bar rv-up">
-  <span class="booking-bar-text" data-i18n="bbText">Limited appointments &mdash; Currently booking 6 weeks out</span>
-  <a href="mailto:ink@gladiatorprague.cz" class="btn-booking" data-i18n="bbCta">Reserve Your Slot &rarr;</a>
-</div>
-
-<section id="about">
-  <div class="rv-lft">
-    <p class="section-label" data-i18n="aboutLabel">About the Studio</p>
-    <h2 class="section-title" data-i18n="aboutTitle">Where Steel<br/>Meets Skin.</h2>
-    <div class="red-rule"></div>
-    <p class="about-body" data-i18n="aboutBody">Born from the raw architecture of Prague&rsquo;s Old Town, Gladiator Tattoo Studio fuses centuries of artisanal craft with fearless contemporary vision. We do not perform tattoos &mdash; we architect permanent identity.</p>
-    <div class="stat-row">
-      <div><span class="stat-num" data-count="12" data-suffix="+">12+</span><span class="stat-label" data-i18n="statYears">Years Active</span></div>
-      <div><span class="stat-num" data-count="4"  data-suffix="K+">4K+</span><span class="stat-label" data-i18n="statPieces">Pieces Done</span></div>
-      <div><span class="stat-num" data-count="8"  data-suffix="">8</span><span class="stat-label" data-i18n="statArtists">Master Artists</span></div>
+  <!-- ── ABOUT ── -->
+  <section id="about">
+    <div class="rv-lft">
+      <p class="section-label" data-i18n="aboutLabel">About the Studio</p>
+      <h2 class="section-title" data-i18n="aboutTitle">Where Steel<br/>Meets Skin.</h2>
+      <div class="red-rule"></div>
+      <p class="about-body" data-i18n="aboutBody">Born from the raw architecture of Prague&rsquo;s Old Town, Gladiator Tattoo Studio fuses centuries of artisanal craft with fearless contemporary vision. We do not perform tattoos &mdash; we architect permanent identity.</p>
+      <div class="stat-row">
+        <div><span class="stat-num" data-count="12" data-suffix="+">12+</span><span class="stat-label" data-i18n="statYears">Years Active</span></div>
+        <div><span class="stat-num" data-count="4"  data-suffix="K+">4K+</span><span class="stat-label" data-i18n="statPieces">Pieces Done</span></div>
+        <div><span class="stat-num" data-count="8"  data-suffix="">8</span><span class="stat-label" data-i18n="statArtists">Master Artists</span></div>
+      </div>
     </div>
-  </div>
-  <div class="about-img-wrap rv-up">
-    <div class="about-img-border"></div>
-    <img src="https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=800&q=90&fit=crop" alt="Tattoo artist at work" loading="lazy"/>
-  </div>
-</section>
-
-<section id="services">
-  <div class="bento-header rv-up">
-    <div>
-      <p class="section-label" data-i18n="servLabel">Our Disciplines</p>
-      <h2 class="section-title" data-i18n="servTitle">The Art<br/>We Forge.</h2>
+    <div class="about-img-wrap rv-up">
+      <div class="about-img-border"></div>
+      <img src="https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?w=800&q=90&fit=crop" alt="Tattoo artist at work" loading="lazy"/>
     </div>
-    <p style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-style:italic;color:rgba(240,236,226,.38);max-width:275px;text-align:right;font-weight:300;" data-i18n="servSub">Every style mastered. Every technique executed with brutal precision.</p>
-  </div>
-  <div class="bento-grid" id="bento-grid">
-    <div class="bento-card bc-1" data-idx="0"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?w=600&q=80&fit=crop')"></div><div class="bento-num">01</div><div class="bento-inner"><span class="bento-icon">&#9876;&#65039;</span><div class="bento-name" data-i18n="s1n">Black &amp; Grey Realism</div><div class="bento-desc" data-i18n="s1d">Photo-realistic portraits and cinematic scenes rendered in obsidian gradients and surgical line work.</div><span class="bento-price" data-i18n="s1p">From 4,500 CZK / session</span></div></div>
-    <div class="bento-card bc-2" data-idx="1"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1565058379802-bbe93b2f703a?w=600&q=80&fit=crop')"></div><div class="bento-num">02</div><div class="bento-inner"><span class="bento-icon">&#129656;</span><div class="bento-name" data-i18n="s2n">Neo-Traditional</div><div class="bento-desc" data-i18n="s2d">Bold contours meet illustrative depth. Classic iconography reborn for the modern flesh.</div><span class="bento-price" data-i18n="s2p">From 3,800 CZK / session</span></div></div>
-    <div class="bento-card bc-3" data-idx="2"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1612865547334-09cb8cb455da?w=400&q=80&fit=crop')"></div><div class="bento-num">03</div><div class="bento-inner"><span class="bento-icon">&#128297;</span><div class="bento-name" data-i18n="s3n">Geometric</div><div class="bento-desc" data-i18n="s3d">Sacred mathematics. Flawless symmetry. Pure architectural precision burned into the skin.</div><span class="bento-price" data-i18n="s3p">From 3,200 CZK / session</span></div></div>
-    <div class="bento-card bc-4" data-idx="3"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=600&q=80&fit=crop')"></div><div class="bento-num">04</div><div class="bento-inner"><span class="bento-icon">&#127761;</span><div class="bento-name" data-i18n="s4n">Blackwork</div><div class="bento-desc" data-i18n="s4d">Maximalist darkness. Solid fills, negative space weaponised. Tribal meets contemporary brutalism.</div><span class="bento-price" data-i18n="s4p">From 4,000 CZK / session</span></div></div>
-    <div class="bento-card bc-5" data-idx="4"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1570867684490-99ca0d72c0b4?w=400&q=80&fit=crop')"></div><div class="bento-num">05</div><div class="bento-inner"><span class="bento-icon">&#128293;</span><div class="bento-name" data-i18n="s5n">Fine Line</div><div class="bento-desc" data-i18n="s5d">Single-needle elegance. Whisper-thin ink lines that demand mastery and absolute control.</div><span class="bento-price" data-i18n="s5p">From 2,800 CZK / session</span></div></div>
-    <div class="bento-card bc-6" data-idx="5"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=600&q=80&fit=crop')"></div><div class="bento-num">06</div><div class="bento-inner"><span class="bento-icon">&#128128;</span><div class="bento-name" data-i18n="s6n">Japanese<br/>Traditional</div><div class="bento-desc" data-i18n="s6d">Irezumi heritage. Full sleeve and back-piece compositions built over multiple sessions.</div><span class="bento-price" data-i18n="s6p">From 5,500 CZK / session</span></div></div>
-    <div class="bento-card bc-7" data-idx="6"><div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1586374579358-9d19d632b6d7?w=600&q=80&fit=crop')"></div><div class="bento-num">07</div><div class="bento-inner"><span class="bento-icon">&#128481;&#65039;</span><div class="bento-name" data-i18n="s7n">Cover-Up &amp; Restoration</div><div class="bento-desc" data-i18n="s7d">We transform regrettable ink into masterwork. Surgical analysis and strategic redesign.</div><span class="bento-price" data-i18n="s7p">Consultation Required</span></div></div>
-    <div class="bento-card bc-8" data-idx="7"><div class="bento-num">08</div><div class="bento-inner"><span class="bento-icon">&#10022;</span><div class="bento-name" data-i18n="s8n">Custom<br/>Consultation</div><div class="bento-desc" data-i18n="s8d">Your vision. Our obsession. Full bespoke design process from concept to masterpiece.</div><span class="bento-price" data-i18n="s8p">Free Initial Consult</span></div></div>
-  </div>
-</section>
+  </section>
 
-<section id="masters">
-  <div class="rv-up" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;">
-    <div><p class="section-label" data-i18n="mastersLabel">The Gladiators</p><h2 class="section-title" data-i18n="mastersTitle">Our Masters.</h2></div>
-    <p style="font-family:'Cormorant Garamond',serif;font-size:.93rem;font-style:italic;color:rgba(240,236,226,.32);max-width:252px;text-align:right;font-weight:300;" data-i18n="mastersSub">Each artist handpicked. Each style uncompromising.</p>
-  </div>
-  <div class="masters-grid rv-up">
-    <div class="master-card"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=85&fit=crop&crop=face" alt="Jakub"/><div class="master-top"><div class="master-insta">@jakub.gladiator</div></div><div class="master-overlay"><div class="master-name">JAKUB NOV&Aacute;K</div><div class="master-style" data-i18n="m1s">Black &amp; Grey Realism</div><div class="master-years" data-i18n="m1y">14 years experience &middot; 1,200+ pieces</div></div></div>
-    <div class="master-card"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=85&fit=crop&crop=face" alt="Marek"/><div class="master-top"><div class="master-insta">@marek.iron</div></div><div class="master-overlay"><div class="master-name">MAREK DVO&#344;&Aacute;K</div><div class="master-style" data-i18n="m2s">Japanese Traditional &amp; Neo-Trad</div><div class="master-years" data-i18n="m2y">11 years experience &middot; 900+ pieces</div></div></div>
-    <div class="master-card"><img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=85&fit=crop&crop=face" alt="Katarina"/><div class="master-top"><div class="master-insta">@katka.lines</div></div><div class="master-overlay"><div class="master-name">KATAR&Iacute;NA HOR&Aacute;K</div><div class="master-style" data-i18n="m3s">Fine Line &amp; Geometric</div><div class="master-years" data-i18n="m3y">9 years experience &middot; 1,400+ pieces</div></div></div>
-  </div>
-</section>
+  <!-- ══════════════════════════════════════════════════
+       SERVICES — HORIZONTAL SCROLL SECTION
+       GSAP pins #services-pin, translates #horizontal-container left
+  ══════════════════════════════════════════════════ -->
+  <section id="services-section">
+    <div id="services-pin">
 
-<section id="testimonials">
-  <div class="rv-up"><p class="section-label" data-i18n="tLabel">Client Words</p><h2 class="section-title" data-i18n="tTitle">The Verdict.</h2></div>
-  <div class="t-grid rv-up">
-    <div class="t-card"><div class="t-mark">&ldquo;</div><p class="t-text" data-i18n="t1">Jakub did a full sleeve in three sessions. The level of detail is beyond anything I&rsquo;ve seen in Europe. Gladiator is not a tattoo shop &mdash; it&rsquo;s a forge.</p><div class="t-author" data-i18n="t1a">&mdash; ROMAN K.</div><div class="t-city">Berlin, Germany</div></div>
-    <div class="t-card"><div class="t-mark">&ldquo;</div><p class="t-text" data-i18n="t2">Katar&iacute;na&rsquo;s fine line work on my ribs is a masterpiece. The precision is surgical. I flew in from London twice and would do it again.</p><div class="t-author" data-i18n="t2a">&mdash; SOPHIE M.</div><div class="t-city">London, UK</div></div>
-    <div class="t-card"><div class="t-mark">&ldquo;</div><p class="t-text" data-i18n="t3">Came for a cover-up, received a work of art. Marek understood exactly what I wanted. Best tattoo atelier in Central Europe.</p><div class="t-author" data-i18n="t3a">&mdash; DMITRI V.</div><div class="t-city">Moscow, Russia</div></div>
-  </div>
-</section>
+      <!-- Fixed left header column (absolute inside pin) -->
+      <div id="services-header">
+        <p class="section-label" data-i18n="servLabel">Our Disciplines</p>
+        <h2 class="section-title" data-i18n="servTitle">The Art<br/>We Forge.</h2>
+        <div class="red-rule" style="margin-top:1.2rem;"></div>
+        <p style="font-family:'Cormorant Garamond',serif;font-size:.95rem;font-style:italic;color:rgba(240,236,226,.36);line-height:1.6;font-weight:300;margin-top:.5rem;max-width:200px;" data-i18n="servSub">
+          Every style mastered. Every technique executed with brutal precision.
+        </p>
+        <!-- progress pills -->
+        <div id="card-progress" style="display:flex;gap:.4rem;margin-top:2rem;flex-wrap:wrap;">
+          <span class="cpill cpill-active"></span>
+          <span class="cpill"></span><span class="cpill"></span><span class="cpill"></span>
+          <span class="cpill"></span><span class="cpill"></span><span class="cpill"></span><span class="cpill"></span>
+        </div>
+      </div>
 
-<section id="location">
-  <div class="rv-up"><p class="section-label" data-i18n="locLabel">Find Us</p><h2 class="section-title" data-i18n="locTitle">The Arena.</h2></div>
-  <div class="loc-grid rv-up">
-    <div class="loc-info">
-      <div><div class="loc-label" data-i18n="addrL">Address</div><div class="loc-val">Rybn&aacute; 716/24<br/>110 00 Praha 1<br/>Czech Republic</div></div>
-      <div><div class="loc-label" data-i18n="hoursL">Studio Hours</div><div class="loc-val">Mon &ndash; Fri: 10:00 &ndash; 20:00<br/>Sat: 10:00 &ndash; 18:00<br/>Sun: By appointment only</div></div>
-      <div><div class="loc-label" data-i18n="contactL">Contact</div><div class="loc-val"><a href="mailto:ink@gladiatorprague.cz" style="color:inherit;text-decoration:none;transition:color .2s" onmouseover="this.style.color='#cc1111'" onmouseout="this.style.color=''">ink@gladiatorprague.cz</a><br/><a href="tel:+420234567890" style="color:inherit;text-decoration:none;transition:color .2s" onmouseover="this.style.color='#cc1111'" onmouseout="this.style.color=''">+420 234 567 890</a></div></div>
-      <div style="margin-top:.5rem;"><a href="mailto:ink@gladiatorprague.cz" class="btn-primary"><span data-i18n="bookNow">Book Your Session</span></a></div>
+      <!-- Horizontal strip -->
+      <div id="horizontal-container">
+
+        <div class="bento-card" data-idx="0">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?w=600&q=80&fit=crop')"></div>
+          <div class="bento-num">01</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#9876;&#65039;</span>
+            <div class="bento-name" data-i18n="s1n">Black &amp; Grey Realism</div>
+            <div class="bento-desc" data-i18n="s1d">Photo-realistic portraits and cinematic scenes rendered in obsidian gradients and surgical line work.</div>
+            <span class="bento-price" data-i18n="s1p">From 4,500 CZK / session</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="1">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1565058379802-bbe93b2f703a?w=600&q=80&fit=crop')"></div>
+          <div class="bento-num">02</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#129656;</span>
+            <div class="bento-name" data-i18n="s2n">Neo-Traditional</div>
+            <div class="bento-desc" data-i18n="s2d">Bold contours meet illustrative depth. Classic iconography reborn for the modern flesh.</div>
+            <span class="bento-price" data-i18n="s2p">From 3,800 CZK / session</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="2">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1612865547334-09cb8cb455da?w=400&q=80&fit=crop')"></div>
+          <div class="bento-num">03</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#128297;</span>
+            <div class="bento-name" data-i18n="s3n">Geometric</div>
+            <div class="bento-desc" data-i18n="s3d">Sacred mathematics. Flawless symmetry. Pure architectural precision burned into the skin.</div>
+            <span class="bento-price" data-i18n="s3p">From 3,200 CZK / session</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="3">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=600&q=80&fit=crop')"></div>
+          <div class="bento-num">04</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#127761;</span>
+            <div class="bento-name" data-i18n="s4n">Blackwork</div>
+            <div class="bento-desc" data-i18n="s4d">Maximalist darkness. Solid fills, negative space weaponised. Tribal meets contemporary brutalism.</div>
+            <span class="bento-price" data-i18n="s4p">From 4,000 CZK / session</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="4">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1570867684490-99ca0d72c0b4?w=400&q=80&fit=crop')"></div>
+          <div class="bento-num">05</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#128293;</span>
+            <div class="bento-name" data-i18n="s5n">Fine Line</div>
+            <div class="bento-desc" data-i18n="s5d">Single-needle elegance. Whisper-thin ink lines that demand mastery and absolute control.</div>
+            <span class="bento-price" data-i18n="s5p">From 2,800 CZK / session</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="5">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=600&q=80&fit=crop')"></div>
+          <div class="bento-num">06</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#128128;</span>
+            <div class="bento-name" data-i18n="s6n">Japanese<br/>Traditional</div>
+            <div class="bento-desc" data-i18n="s6d">Irezumi heritage. Full sleeve and back-piece compositions built over multiple sessions with ceremonial seriousness.</div>
+            <span class="bento-price" data-i18n="s6p">From 5,500 CZK / session</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="6">
+          <div class="bento-bg" style="background-image:url('https://images.unsplash.com/photo-1586374579358-9d19d632b6d7?w=600&q=80&fit=crop')"></div>
+          <div class="bento-num">07</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#128481;&#65039;</span>
+            <div class="bento-name" data-i18n="s7n">Cover-Up &amp; Restoration</div>
+            <div class="bento-desc" data-i18n="s7d">We transform regrettable ink into masterwork. Surgical analysis and strategic redesign for total redemption.</div>
+            <span class="bento-price" data-i18n="s7p">Consultation Required</span>
+          </div>
+        </div>
+
+        <div class="bento-card" data-idx="7">
+          <div class="bento-num">08</div>
+          <div class="bento-inner">
+            <span class="bento-icon">&#10022;</span>
+            <div class="bento-name" data-i18n="s8n">Custom<br/>Consultation</div>
+            <div class="bento-desc" data-i18n="s8d">Your vision. Our obsession. Full bespoke design process from concept to completed masterpiece.</div>
+            <span class="bento-price" data-i18n="s8p">Free Initial Consult</span>
+          </div>
+        </div>
+
+      </div><!-- /horizontal-container -->
+
+      <!-- Scroll indicator -->
+      <div id="horiz-indicator">
+        <span>Scroll to explore</span>
+        <span class="horiz-arrow"></span>
+      </div>
+
+    </div><!-- /services-pin -->
+  </section><!-- /services-section -->
+
+  <!-- ── MASTERS ── -->
+  <section id="masters">
+    <div class="rv-up" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <p class="section-label" data-i18n="mastersLabel">The Gladiators</p>
+        <h2 class="section-title" data-i18n="mastersTitle">Our Masters.</h2>
+      </div>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:.92rem;font-style:italic;color:rgba(240,236,226,.3);max-width:250px;text-align:right;font-weight:300;" data-i18n="mastersSub">Each artist handpicked. Each style uncompromising.</p>
     </div>
-    <div class="map-wrap">
-      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2560.1584939283!2d14.422978215719!3d50.08885097942591!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x470b94f1e7c67cc3%3A0x19dcb4b6e2b1cd6c!2sRybn%C3%A1%20716%2F24%2C%20110%2000%20Star%C3%A9%20M%C4%9Bsto!5e0!3m2!1sen!2scz!4v1621000000000!5m2!1sen!2scz" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Gladiator location"></iframe>
-      <div class="map-badge">RYBN&Aacute; 24 &mdash; STAR&Eacute; M&#283;STO</div>
+    <div class="masters-grid rv-up">
+      <div class="master-card">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=85&fit=crop&crop=face" alt="Jakub"/>
+        <div class="master-top"><div class="master-insta">@jakub.gladiator</div></div>
+        <div class="master-overlay">
+          <div class="master-name">JAKUB NOV&Aacute;K</div>
+          <div class="master-style" data-i18n="m1s">Black &amp; Grey Realism</div>
+          <div class="master-years" data-i18n="m1y">14 years &middot; 1,200+ pieces</div>
+        </div>
+      </div>
+      <div class="master-card">
+        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=85&fit=crop&crop=face" alt="Marek"/>
+        <div class="master-top"><div class="master-insta">@marek.iron</div></div>
+        <div class="master-overlay">
+          <div class="master-name">MAREK DVO&#344;&Aacute;K</div>
+          <div class="master-style" data-i18n="m2s">Japanese Traditional</div>
+          <div class="master-years" data-i18n="m2y">11 years &middot; 900+ pieces</div>
+        </div>
+      </div>
+      <div class="master-card">
+        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=85&fit=crop&crop=face" alt="Katarina"/>
+        <div class="master-top"><div class="master-insta">@katka.lines</div></div>
+        <div class="master-overlay">
+          <div class="master-name">KATAR&Iacute;NA HOR&Aacute;K</div>
+          <div class="master-style" data-i18n="m3s">Fine Line &amp; Geometric</div>
+          <div class="master-years" data-i18n="m3y">9 years &middot; 1,400+ pieces</div>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<footer>
-  <div><div class="footer-logo">GLADIATOR</div><div class="footer-tagline" data-i18n="ftag">Permanent Mastery. Brutal Luxury.</div><div class="footer-socials"><a href="#" class="footer-soc">INSTAGRAM</a><a href="#" class="footer-soc">FACEBOOK</a></div></div>
-  <div><div class="footer-nav-title" data-i18n="fnav">Navigation</div><a href="#about" class="footer-link" data-i18n="fna">About Studio</a><a href="#services" class="footer-link" data-i18n="fns">Services</a><a href="#masters" class="footer-link" data-i18n="fnm">Masters</a><a href="#location" class="footer-link" data-i18n="fnc">Contact &amp; Location</a></div>
-  <div><div class="footer-nav-title" data-i18n="fpol">Legal</div><a href="#" class="footer-link" data-i18n="fp1">Privacy Policy</a><a href="#" class="footer-link" data-i18n="fp2">Terms of Service</a><a href="#" class="footer-link" data-i18n="fp3">Cookie Policy</a></div>
-  <div class="footer-copy"><span>&copy; 2025 Gladiator Tattoo Studio s.r.o. &mdash; Praha 1</span><span data-i18n="fcopy">All rights reserved. Permanent art deserves permanent respect.</span></div>
-</footer>
+  <!-- ── TESTIMONIALS ── -->
+  <section id="testimonials">
+    <div class="rv-up">
+      <p class="section-label" data-i18n="tLabel">Client Words</p>
+      <h2 class="section-title" data-i18n="tTitle">The Verdict.</h2>
+    </div>
+    <div class="t-grid rv-up">
+      <div class="t-card"><div class="t-mark">&ldquo;</div><p class="t-text" data-i18n="t1">Jakub did a full sleeve in three sessions. The level of detail is beyond anything I&rsquo;ve seen in Europe. Gladiator is not a tattoo shop &mdash; it&rsquo;s a forge.</p><div class="t-author" data-i18n="t1a">&mdash; ROMAN K.</div><div class="t-city">Berlin, Germany</div></div>
+      <div class="t-card"><div class="t-mark">&ldquo;</div><p class="t-text" data-i18n="t2">Katar&iacute;na&rsquo;s fine line work on my ribs is a masterpiece. The precision is surgical. I flew in from London twice and would do it again.</p><div class="t-author" data-i18n="t2a">&mdash; SOPHIE M.</div><div class="t-city">London, UK</div></div>
+      <div class="t-card"><div class="t-mark">&ldquo;</div><p class="t-text" data-i18n="t3">Came for a cover-up, received a work of art. Marek understood exactly what I wanted. Best tattoo atelier in Central Europe.</p><div class="t-author" data-i18n="t3a">&mdash; DMITRI V.</div><div class="t-city">Moscow, Russia</div></div>
+    </div>
+  </section>
 
-</div>
+  <!-- ── LOCATION ── -->
+  <section id="location">
+    <div class="rv-up">
+      <p class="section-label" data-i18n="locLabel">Find Us</p>
+      <h2 class="section-title" data-i18n="locTitle">The Arena.</h2>
+    </div>
+    <div class="loc-grid rv-up">
+      <div class="loc-info">
+        <div><div class="loc-label" data-i18n="addrL">Address</div><div class="loc-val">Rybn&aacute; 716/24<br/>110 00 Praha 1<br/>Czech Republic</div></div>
+        <div><div class="loc-label" data-i18n="hoursL">Studio Hours</div><div class="loc-val">Mon &ndash; Fri: 10:00 &ndash; 20:00<br/>Sat: 10:00 &ndash; 18:00<br/>Sun: By appointment only</div></div>
+        <div><div class="loc-label" data-i18n="contactL">Contact</div><div class="loc-val"><a href="mailto:ink@gladiatorprague.cz" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='#cc1111'" onmouseout="this.style.color=''">ink@gladiatorprague.cz</a><br/><a href="tel:+420234567890" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='#cc1111'" onmouseout="this.style.color=''">+420 234 567 890</a></div></div>
+        <div style="margin-top:.5rem;"><a href="mailto:ink@gladiatorprague.cz" class="btn-primary"><span data-i18n="bookNow">Book Your Session</span></a></div>
+      </div>
+      <div class="map-wrap">
+        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2560.1584939283!2d14.422978215719!3d50.08885097942591!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x470b94f1e7c67cc3%3A0x19dcb4b6e2b1cd6c!2sRybn%C3%A1%20716%2F24%2C%20110%2000%20Star%C3%A9%20M%C4%9Bsto!5e0!3m2!1sen!2scz!4v1621000000000!5m2!1sen!2scz" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Gladiator location"></iframe>
+        <div class="map-badge">RYBN&Aacute; 24 &mdash; STAR&Eacute; M&#283;STO</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div><div class="footer-logo">GLADIATOR</div><div class="footer-tagline" data-i18n="ftag">Permanent Mastery. Brutal Luxury.</div><div class="footer-socials"><a href="#" class="footer-soc">INSTAGRAM</a><a href="#" class="footer-soc">FACEBOOK</a></div></div>
+    <div><div class="footer-nav-title" data-i18n="fnav">Navigation</div><a href="#about" class="footer-link" data-i18n="fna">About Studio</a><a href="#services-section" class="footer-link" data-i18n="fns">Services</a><a href="#masters" class="footer-link" data-i18n="fnm">Masters</a><a href="#location" class="footer-link" data-i18n="fnc">Contact &amp; Location</a></div>
+    <div><div class="footer-nav-title" data-i18n="fpol">Legal</div><a href="#" class="footer-link" data-i18n="fp1">Privacy Policy</a><a href="#" class="footer-link" data-i18n="fp2">Terms of Service</a><a href="#" class="footer-link" data-i18n="fp3">Cookie Policy</a></div>
+    <div class="footer-copy"><span>&copy; 2025 Gladiator Tattoo Studio s.r.o. &mdash; Praha 1</span><span data-i18n="fcopy">All rights reserved. Permanent art deserves permanent respect.</span></div>
+  </footer>
+
+</div><!-- /scroll-content -->
+
+<!-- ── PROGRESS PILL STYLES (inline to avoid class collision) ── -->
+<style>
+.cpill{display:inline-block;width:18px;height:2px;background:rgba(240,236,226,.15);transition:background .3s ease,width .3s ease;}
+.cpill-active{background:var(--red);width:32px;}
+</style>
 
 <script>
-var TR = {
-  en:{eyebrow:"— Prague's Premier Ink Atelier —",h1:"Forged",h2:"In The",h3:"Arena.",heroSub:"Brutal Luxury. Permanent Mastery. No Compromise.",bookNow:"Book Your Session",scrollDown:"Scroll Down",bbText:"Limited appointments — Currently booking 6 weeks out",bbCta:"Reserve Your Slot →",aboutLabel:"About the Studio",aboutTitle:"Where Steel<br/>Meets Skin.",aboutBody:"Born from the raw architecture of Prague's Old Town, Gladiator Tattoo Studio fuses centuries of artisanal craft with fearless contemporary vision. We do not perform tattoos — we architect permanent identity.",statYears:"Years Active",statPieces:"Pieces Done",statArtists:"Master Artists",servLabel:"Our Disciplines",servTitle:"The Art<br/>We Forge.",servSub:"Every style mastered. Every technique executed with brutal precision.",s1n:"Black & Grey Realism",s1d:"Photo-realistic portraits and cinematic scenes rendered in obsidian gradients and surgical line work.",s1p:"From 4,500 CZK / session",s2n:"Neo-Traditional",s2d:"Bold contours meet illustrative depth. Classic iconography reborn for the modern flesh.",s2p:"From 3,800 CZK / session",s3n:"Geometric",s3d:"Sacred mathematics. Flawless symmetry. Pure architectural precision burned into the skin.",s3p:"From 3,200 CZK / session",s4n:"Blackwork",s4d:"Maximalist darkness. Solid fills, negative space weaponised. Tribal meets contemporary brutalism.",s4p:"From 4,000 CZK / session",s5n:"Fine Line",s5d:"Single-needle elegance. Whisper-thin ink lines that demand mastery and absolute control.",s5p:"From 2,800 CZK / session",s6n:"Japanese<br/>Traditional",s6d:"Irezumi heritage. Full sleeve and back-piece compositions built over multiple sessions.",s6p:"From 5,500 CZK / session",s7n:"Cover-Up & Restoration",s7d:"We transform regrettable ink into masterwork. Surgical analysis and strategic redesign.",s7p:"Consultation Required",s8n:"Custom<br/>Consultation",s8d:"Your vision. Our obsession. Full bespoke design process from concept to masterpiece.",s8p:"Free Initial Consult",mastersLabel:"The Gladiators",mastersTitle:"Our Masters.",mastersSub:"Each artist handpicked. Each style uncompromising.",m1s:"Black & Grey Realism",m1y:"14 years experience · 1,200+ pieces",m2s:"Japanese Traditional & Neo-Trad",m2y:"11 years experience · 900+ pieces",m3s:"Fine Line & Geometric",m3y:"9 years experience · 1,400+ pieces",tLabel:"Client Words",tTitle:"The Verdict.",t1:"Jakub did a full sleeve in three sessions. The level of detail is beyond anything I've seen in Europe. Gladiator is not a tattoo shop — it's a forge.",t1a:"— ROMAN K.",t2:"Katarína's fine line work on my ribs is a masterpiece. The precision is surgical. I flew in from London twice and would do it again.",t2a:"— SOPHIE M.",t3:"Came for a cover-up, received a work of art. Marek understood exactly what I wanted. Best tattoo atelier in Central Europe.",t3a:"— DMITRI V.",locLabel:"Find Us",locTitle:"The Arena.",addrL:"Address",hoursL:"Studio Hours",contactL:"Contact",ftag:"Permanent Mastery. Brutal Luxury.",fnav:"Navigation",fna:"About Studio",fns:"Services",fnm:"Masters",fnc:"Contact & Location",fpol:"Legal",fp1:"Privacy Policy",fp2:"Terms of Service",fp3:"Cookie Policy",fcopy:"All rights reserved. Permanent art deserves permanent respect."},
-  cs:{eyebrow:"— Přední Pražské Ink Ateliér —",h1:"Vykovány",h2:"V Arénách",h3:"Prahy.",heroSub:"Brutální Luxus. Trvalé Mistrovství. Bez Kompromisů.",bookNow:"Rezervovat Sezení",scrollDown:"Rolovat Dolů",bbText:"Omezené termíny — Rezervujeme 6 týdnů dopředu",bbCta:"Zarezervovat →",aboutLabel:"O Studiu",aboutTitle:"Kde Ocel<br/>Setkává Kůži.",aboutBody:"Zrozeno z hrubé architektury Pražského Starého Města, Gladiator Tattoo Studio spojuje staletí řemeslného umění s nebojácnou současnou vizí.",statYears:"Let Aktivní",statPieces:"Hotových Kusů",statArtists:"Mistrovských Umělců",servLabel:"Naše Disciplíny",servTitle:"Umění<br/>Které Kujeme.",servSub:"Každý styl zvládnutý. Každá technika provedena s brutální přesností.",s1n:"Černobílý Realismus",s1d:"Fotograficky realistické portréty a filmové scény v obsidiánových přechodech.",s1p:"Od 4 500 Kč / sezení",s2n:"Neo-Tradiční",s2d:"Tučné obrysy setkávají ilustrativní hloubku. Klasická ikonografie znovuzrozená.",s2p:"Od 3 800 Kč / sezení",s3n:"Geometrické",s3d:"Posvátná matematika. Dokonalá symetrie. Čistá architektonická přesnost.",s3p:"Od 3 200 Kč / sezení",s4n:"Blackwork",s4d:"Maximalistická temnota. Plné výplně, negativní prostor jako zbraň.",s4p:"Od 4 000 Kč / sezení",s5n:"Jemná Linka",s5d:"Elegance jedné jehly. Linky tenčí než šepot.",s5p:"Od 2 800 Kč / sezení",s6n:"Japonská<br/>Tradice",s6d:"Dědictví irezumi. Kompozice celých rukávů s obřadnou vážností.",s6p:"Od 5 500 Kč / sezení",s7n:"Cover-Up & Restaurace",s7d:"Transformujeme litované inkousty na mistrovská díla.",s7p:"Konzultace Vyžadována",s8n:"Vlastní<br/>Konzultace",s8d:"Vaše vize. Naše posedlost. Plný zakázkový návrhový proces.",s8p:"Zdarma Úvodní Konzultace",mastersLabel:"Gladiátoři",mastersTitle:"Naši Mistři.",mastersSub:"Každý umělec ručně vybraný. Každý styl nekompromisní.",m1s:"Černobílý Realismus",m1y:"14 let zkušeností · 1 200+ kusů",m2s:"Japonská Tradice & Neo-Trad",m2y:"11 let zkušeností · 900+ kusů",m3s:"Jemná Linka & Geometrické",m3y:"9 let zkušeností · 1 400+ kusů",tLabel:"Slova Klientů",tTitle:"Verdikt.",t1:"Jakub mi udělal celý rukáv ve třech sezeních. Úroveň detailů je nad rámec čehokoliv v Evropě.",t1a:"— ROMAN K.",t2:"Jemná linka Kataríny na mých žebrech je mistrovské dílo. Přesnost je chirurgická.",t2a:"— SOPHIE M.",t3:"Přišel jsem na cover-up, dostal jsem umělecké dílo. Nejlepší ateliér v ČE.",t3a:"— DMITRI V.",locLabel:"Najděte Nás",locTitle:"Aréna.",addrL:"Adresa",hoursL:"Otevírací Hodiny",contactL:"Kontakt",ftag:"Trvalé Mistrovství. Brutální Luxus.",fnav:"Navigace",fna:"O Studiu",fns:"Služby",fnm:"Mistři",fnc:"Kontakt & Místo",fpol:"Právní",fp1:"Ochrana Osobních Údajů",fp2:"Podmínky Služby",fp3:"Zásady Cookies",fcopy:"Všechna práva vyhrazena. Trvalé umění si zaslouží trvalou úctu."},
-  ru:{eyebrow:"— Ведущее Тату-Ателье Праги —",h1:"Выкован",h2:"В Арене",h3:"Гладиатор.",heroSub:"Брутальная Роскошь. Вечное Мастерство. Без Компромиссов.",bookNow:"Записаться на Сеанс",scrollDown:"Прокрутить Вниз",bbText:"Ограниченные записи — Бронируем на 6 недель вперёд",bbCta:"Забронировать →",aboutLabel:"О Студии",aboutTitle:"Где Сталь<br/>Встречает Кожу.",aboutBody:"Рождённая из грубой архитектуры Старого Города Праги, студия Gladiator соединяет вековое ремесло с бесстрашной современной визией.",statYears:"Лет Работы",statPieces:"Работ Сделано",statArtists:"Мастеров",servLabel:"Наши Дисциплины",servTitle:"Искусство<br/>Которое Куём.",servSub:"Каждый стиль освоен. Каждая техника исполнена с брутальной точностью.",s1n:"Чёрно-серый Реализм",s1d:"Фотореалистичные портреты в обсидиановых градиентах и хирургической линии.",s1p:"От 4 500 CZK / сеанс",s2n:"Нео-Традишнл",s2d:"Жирные контуры встречают иллюстративную глубину. Классическая иконография.",s2p:"От 3 800 CZK / сеанс",s3n:"Геометрия",s3d:"Сакральная математика. Безупречная симметрия. Архитектурная точность.",s3p:"От 3 200 CZK / сеанс",s4n:"Блэкворк",s4d:"Максималистская тьма. Сплошные заливки, отрицательное пространство как оружие.",s4p:"От 4 000 CZK / сеанс",s5n:"Тонкая Линия",s5d:"Элегантность одной иглы. Линии тоньше шёпота.",s5p:"От 2 800 CZK / сеанс",s6n:"Японская<br/>Традиция",s6d:"Наследие иредзуми. Рукава и спины, создаваемые за несколько сеансов.",s6p:"От 5 500 CZK / сеанс",s7n:"Перекрытие & Реставрация",s7d:"Превращаем жалеемые татуировки в шедевры. Хирургический анализ.",s7p:"Требуется Консультация",s8n:"Индивидуальная<br/>Консультация",s8d:"Ваше видение. Наша одержимость. Полный бесповторный процесс.",s8p:"Бесплатная Первичная Консультация",mastersLabel:"Гладиаторы",mastersTitle:"Наши Мастера.",mastersSub:"Каждый художник отобран вручную. Каждый стиль бескомпромиссен.",m1s:"Чёрно-серый Реализм",m1y:"14 лет опыта · 1 200+ работ",m2s:"Японская Традиция & Нео-Трад",m2y:"11 лет опыта · 900+ работ",m3s:"Тонкая Линия & Геометрия",m3y:"9 лет опыта · 1 400+ работ",tLabel:"Слова Клиентов",tTitle:"Вердикт.",t1:"Якуб сделал мне полный рукав за три сеанса. Уровень детализации превосходит всё в Европе.",t1a:"— РОМАН К.",t2:"Работа Катарины тонкой линией — шедевр. Точность хирургическая.",t2a:"— SOFIA M.",t3:"Пришёл за кавером, получил произведение искусства. Лучшее ателье в ЦЕ.",t3a:"— ДМИТРИЙ В.",locLabel:"Найдите Нас",locTitle:"Арена.",addrL:"Адрес",hoursL:"Часы Работы",contactL:"Контакт",ftag:"Вечное Мастерство. Брутальная Роскошь.",fnav:"Навигация",fna:"О Студии",fns:"Услуги",fnm:"Мастера",fnc:"Контакт & Место",fpol:"Правовые",fp1:"Политика Конфиденциальности",fp2:"Условия Использования",fp3:"Политика Cookies",fcopy:"Все права защищены. Вечное искусство заслуживает вечного уважения."}
+var TR={
+  en:{eyebrow:"— Prague's Premier Ink Atelier —",h1:"Forged",h2:"In The",h3:"Arena.",heroSub:"Brutal Luxury. Permanent Mastery. No Compromise.",bookNow:"Book Your Session",scrollDown:"Scroll Down",bbText:"Limited appointments — Currently booking 6 weeks out",bbCta:"Reserve Your Slot →",aboutLabel:"About the Studio",aboutTitle:"Where Steel<br/>Meets Skin.",aboutBody:"Born from the raw architecture of Prague's Old Town, Gladiator Tattoo Studio fuses centuries of artisanal craft with fearless contemporary vision. We do not perform tattoos — we architect permanent identity.",statYears:"Years Active",statPieces:"Pieces Done",statArtists:"Master Artists",servLabel:"Our Disciplines",servTitle:"The Art<br/>We Forge.",servSub:"Every style mastered. Every technique executed with brutal precision.",s1n:"Black & Grey Realism",s1d:"Photo-realistic portraits rendered in obsidian gradients and surgical line work.",s1p:"From 4,500 CZK / session",s2n:"Neo-Traditional",s2d:"Bold contours meet illustrative depth. Classic iconography reborn for the modern flesh.",s2p:"From 3,800 CZK / session",s3n:"Geometric",s3d:"Sacred mathematics. Flawless symmetry. Architectural precision burned into skin.",s3p:"From 3,200 CZK / session",s4n:"Blackwork",s4d:"Maximalist darkness. Solid fills, negative space weaponised. Brutal tribal meets contemporary.",s4p:"From 4,000 CZK / session",s5n:"Fine Line",s5d:"Single-needle elegance. Whisper-thin lines demanding mastery and absolute control.",s5p:"From 2,800 CZK / session",s6n:"Japanese<br/>Traditional",s6d:"Irezumi heritage. Full sleeve compositions built over multiple sessions with ceremonial seriousness.",s6p:"From 5,500 CZK / session",s7n:"Cover-Up & Restoration",s7d:"We transform regrettable ink into masterwork. Surgical analysis and strategic redesign.",s7p:"Consultation Required",s8n:"Custom<br/>Consultation",s8d:"Your vision. Our obsession. Full bespoke design from concept to completed masterpiece.",s8p:"Free Initial Consult",mastersLabel:"The Gladiators",mastersTitle:"Our Masters.",mastersSub:"Each artist handpicked. Each style uncompromising.",m1s:"Black & Grey Realism",m1y:"14 years · 1,200+ pieces",m2s:"Japanese Traditional",m2y:"11 years · 900+ pieces",m3s:"Fine Line & Geometric",m3y:"9 years · 1,400+ pieces",tLabel:"Client Words",tTitle:"The Verdict.",t1:"Jakub did a full sleeve in three sessions. The level of detail is beyond anything I've seen in Europe.",t1a:"— ROMAN K.",t2:"Katarína's fine line work on my ribs is a masterpiece. The precision is surgical.",t2a:"— SOPHIE M.",t3:"Came for a cover-up, received a work of art. Best tattoo atelier in Central Europe.",t3a:"— DMITRI V.",locLabel:"Find Us",locTitle:"The Arena.",addrL:"Address",hoursL:"Studio Hours",contactL:"Contact",ftag:"Permanent Mastery. Brutal Luxury.",fnav:"Navigation",fna:"About Studio",fns:"Services",fnm:"Masters",fnc:"Contact & Location",fpol:"Legal",fp1:"Privacy Policy",fp2:"Terms of Service",fp3:"Cookie Policy",fcopy:"All rights reserved. Permanent art deserves permanent respect."},
+  cs:{eyebrow:"— Přední Pražské Ink Ateliér —",h1:"Vykovány",h2:"V Arénách",h3:"Prahy.",heroSub:"Brutální Luxus. Trvalé Mistrovství. Bez Kompromisů.",bookNow:"Rezervovat Sezení",scrollDown:"Rolovat Dolů",bbText:"Omezené termíny — Rezervujeme 6 týdnů dopředu",bbCta:"Zarezervovat →",aboutLabel:"O Studiu",aboutTitle:"Kde Ocel<br/>Setkává Kůži.",aboutBody:"Zrozeno z hrubé architektury Pražského Starého Města, Gladiator Tattoo Studio spojuje staletí řemeslného umění s nebojácnou vizí.",statYears:"Let Aktivní",statPieces:"Hotových Kusů",statArtists:"Mistrovských Umělců",servLabel:"Naše Disciplíny",servTitle:"Umění<br/>Které Kujeme.",servSub:"Každý styl zvládnutý. Každá technika provedena s brutální přesností.",s1n:"Černobílý Realismus",s1d:"Fotograficky realistické portréty v obsidiánových přechodech.",s1p:"Od 4 500 Kč",s2n:"Neo-Tradiční",s2d:"Tučné obrysy setkávají ilustrativní hloubku. Klasická ikonografie znovuzrozená.",s2p:"Od 3 800 Kč",s3n:"Geometrické",s3d:"Posvátná matematika. Dokonalá symetrie. Čistá přesnost.",s3p:"Od 3 200 Kč",s4n:"Blackwork",s4d:"Maximalistická temnota. Plné výplně, negativní prostor jako zbraň.",s4p:"Od 4 000 Kč",s5n:"Jemná Linka",s5d:"Elegance jedné jehly. Linky tenčí než šepot.",s5p:"Od 2 800 Kč",s6n:"Japonská<br/>Tradice",s6d:"Dědictví irezumi. Kompozice celých rukávů s obřadnou vážností.",s6p:"Od 5 500 Kč",s7n:"Cover-Up",s7d:"Transformujeme litované inkousty na mistrovská díla.",s7p:"Konzultace",s8n:"Vlastní<br/>Konzultace",s8d:"Vaše vize. Naše posedlost. Plný zakázkový proces.",s8p:"Zdarma",mastersLabel:"Gladiátoři",mastersTitle:"Naši Mistři.",mastersSub:"Každý umělec ručně vybraný.",m1s:"Černobílý Realismus",m1y:"14 let · 1 200+ kusů",m2s:"Japonská Tradice",m2y:"11 let · 900+ kusů",m3s:"Jemná Linka",m3y:"9 let · 1 400+ kusů",tLabel:"Slova Klientů",tTitle:"Verdikt.",t1:"Jakub mi udělal celý rukáv ve třech sezeních. Úroveň detailů je nad rámec čehokoliv.",t1a:"— ROMAN K.",t2:"Jemná linka Kataríny je mistrovské dílo. Přesnost je chirurgická.",t2a:"— SOPHIE M.",t3:"Přišel jsem na cover-up, dostal jsem umělecké dílo.",t3a:"— DMITRI V.",locLabel:"Najděte Nás",locTitle:"Aréna.",addrL:"Adresa",hoursL:"Otevírací Hodiny",contactL:"Kontakt",ftag:"Trvalé Mistrovství. Brutální Luxus.",fnav:"Navigace",fna:"O Studiu",fns:"Služby",fnm:"Mistři",fnc:"Kontakt",fpol:"Právní",fp1:"Ochrana Dat",fp2:"Podmínky",fp3:"Cookies",fcopy:"Všechna práva vyhrazena."},
+  ru:{eyebrow:"— Ведущее Тату-Ателье Праги —",h1:"Выкован",h2:"В Арене",h3:"Гладиатор.",heroSub:"Брутальная Роскошь. Вечное Мастерство. Без Компромиссов.",bookNow:"Записаться",scrollDown:"Прокрутить",bbText:"Ограниченные записи — Бронируем на 6 недель вперёд",bbCta:"Забронировать →",aboutLabel:"О Студии",aboutTitle:"Где Сталь<br/>Встречает Кожу.",aboutBody:"Рождённая из грубой архитектуры Старого Города Праги, студия Gladiator соединяет вековое ремесло с бесстрашной визией.",statYears:"Лет Работы",statPieces:"Работ Сделано",statArtists:"Мастеров",servLabel:"Наши Дисциплины",servTitle:"Искусство<br/>Которое Куём.",servSub:"Каждый стиль освоен. Каждая техника исполнена с точностью.",s1n:"Чёрно-серый Реализм",s1d:"Фотореалистичные портреты в обсидиановых градиентах.",s1p:"От 4 500 CZK",s2n:"Нео-Традишнл",s2d:"Жирные контуры встречают иллюстративную глубину.",s2p:"От 3 800 CZK",s3n:"Геометрия",s3d:"Сакральная математика. Безупречная симметрия.",s3p:"От 3 200 CZK",s4n:"Блэкворк",s4d:"Максималистская тьма. Сплошные заливки.",s4p:"От 4 000 CZK",s5n:"Тонкая Линия",s5d:"Элегантность одной иглы. Абсолютный контроль.",s5p:"От 2 800 CZK",s6n:"Японская<br/>Традиция",s6d:"Наследие иредзуми. Рукава и спины с церемониальной серьёзностью.",s6p:"От 5 500 CZK",s7n:"Реставрация",s7d:"Превращаем жалеемые татуировки в шедевры.",s7p:"Консультация",s8n:"Индивидуальная<br/>Консультация",s8d:"Ваше видение. Наша одержимость.",s8p:"Бесплатно",mastersLabel:"Гладиаторы",mastersTitle:"Наши Мастера.",mastersSub:"Каждый художник отобран вручную.",m1s:"Чёрно-серый Реализм",m1y:"14 лет · 1 200+ работ",m2s:"Японская Традиция",m2y:"11 лет · 900+ работ",m3s:"Тонкая Линия",m3y:"9 лет · 1 400+ работ",tLabel:"Слова Клиентов",tTitle:"Вердикт.",t1:"Якуб сделал мне полный рукав за три сеанса. Уровень детализации превосходит всё.",t1a:"— РОМАН К.",t2:"Работа Катарины — шедевр. Точность хирургическая.",t2a:"— SOFIA M.",t3:"Пришёл за кавером, получил произведение искусства.",t3a:"— ДМИТРИЙ В.",locLabel:"Найдите Нас",locTitle:"Арена.",addrL:"Адрес",hoursL:"Часы Работы",contactL:"Контакт",ftag:"Вечное Мастерство. Брутальная Роскошь.",fnav:"Навигация",fna:"О Студии",fns:"Услуги",fnm:"Мастера",fnc:"Контакт",fpol:"Правовые",fp1:"Конфиденциальность",fp2:"Условия",fp3:"Cookies",fcopy:"Все права защищены."}
 };
-function setLang(lang){
-  var t=TR[lang];
-  if(!t)return;
+function setLang(l){
+  var t=TR[l]; if(!t) return;
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var k=el.getAttribute('data-i18n');
-    if(t[k]!==undefined)el.innerHTML=t[k];
+    if(t[k]!==undefined) el.innerHTML=t[k];
   });
   document.querySelectorAll('.lang-btn').forEach(function(b){
-    b.classList.toggle('active',b.getAttribute('data-lang')===lang);
+    b.classList.toggle('active',b.getAttribute('data-lang')===l);
   });
 }
 </script>
 
 <script>
-/*
- * ============================================================
- *  GLADIATOR 3D ENGINE v2 — Production Build (no fallback geometry)
- *  ============================================================
- */
+/* ████████████████████████████████████████████████████████████
+   GLADIATOR 3D ENGINE v3
+   ─────────────────────────────────────────────────────────────
+   FIX 1: Helmet centred via Box3 → position.sub(center)
+   FIX 2: Renderer is exactly window.innerWidth / innerHeight
+   FIX 3: Particles (data stream) follow horizontal scroll
+   ████████████████████████████████████████████████████████████ */
 (function(){
 'use strict';
 
-/* ── sanity check ── */
 if(typeof THREE==='undefined'){
-  console.error('[GLADIATOR] THREE not loaded — aborting 3D engine');
+  console.error('[GLADIATOR] THREE not loaded');
   return;
 }
 
 var hasGSAP = typeof gsap!=='undefined' && typeof ScrollTrigger!=='undefined';
-if(hasGSAP){ gsap.registerPlugin(ScrollTrigger); }
+if(hasGSAP) gsap.registerPlugin(ScrollTrigger);
 
-/* ─────────────────────────────────────────────
-   RENDERER
-───────────────────────────────────────────── */
-var canvas   = document.getElementById('gladiator-canvas');
-var W        = window.innerWidth;
-var H        = window.innerHeight;
+/* ────────────────────────────────────────
+   RENDERER — exactly fills the viewport
+──────────────────────────────────────── */
+var canvas = document.getElementById('gladiator-canvas');
 
 var renderer = new THREE.WebGLRenderer({
   canvas:          canvas,
@@ -315,88 +752,81 @@ var renderer = new THREE.WebGLRenderer({
   antialias:       true,
   powerPreference: 'high-performance'
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-renderer.setSize(W,H);
-renderer.shadowMap.enabled  = true;
-renderer.shadowMap.type     = THREE.PCFSoftShadowMap;
-renderer.toneMapping        = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure= 1.3;
-if(THREE.sRGBEncoding!==undefined){
-  renderer.outputEncoding = THREE.sRGBEncoding;
+
+function setRendererSize(){
+  var W = window.innerWidth;
+  var H = window.innerHeight;
+  renderer.setSize(W, H, false); /* false = don't set CSS size (CSS handles it) */
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
 }
 
-/* ─────────────────────────────────────────────
-   SCENE + CAMERA
-───────────────────────────────────────────── */
+renderer.shadowMap.enabled   = true;
+renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
+renderer.toneMapping         = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+if(THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+
+/* ────────────────────────────────────────
+   SCENE & CAMERA
+──────────────────────────────────────── */
 var scene  = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(42, W/H, 0.01, 300);
-camera.position.set(0, 0.4, 7);
+var camera = new THREE.PerspectiveCamera(
+  42,
+  window.innerWidth / window.innerHeight,
+  0.01, 300
+);
+/* Camera sits at Z=7, looking at world origin (0,0,0)
+   The centred helmet will sit exactly at origin → visually centred */
+camera.position.set(0, 0, 7);
+camera.lookAt(0, 0, 0);
 
-/* ─────────────────────────────────────────────
+setRendererSize(); /* initial sizing */
+
+/* ────────────────────────────────────────
    LIGHTS
-───────────────────────────────────────────── */
-/* Ambient — deep darkness */
-var ambLight = new THREE.AmbientLight(0x0d0d0d, 1.4);
-scene.add(ambLight);
+──────────────────────────────────────── */
+scene.add(new THREE.AmbientLight(0x0d0d0d, 1.4));
 
-/* Primary directional — top-left chrome mirror */
 var dirLight = new THREE.DirectionalLight(0xffffff, 3.5);
 dirLight.position.set(-5, 7, 4);
-dirLight.castShadow                    = true;
-dirLight.shadow.mapSize.width          = 2048;
-dirLight.shadow.mapSize.height         = 2048;
-dirLight.shadow.camera.near            = 0.5;
-dirLight.shadow.camera.far             = 50;
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
 scene.add(dirLight);
 
-/* Sinister crimson rim — behind model */
 var rimLight = new THREE.PointLight(0xff1111, 5.0, 20, 1.5);
 rimLight.position.set(0.4, 0.8, -3.8);
 scene.add(rimLight);
 
-/* Cool blue under-fill */
 var fillLight = new THREE.PointLight(0x1a2850, 3.0, 16);
 fillLight.position.set(3.5, -2.5, 2.5);
 scene.add(fillLight);
 
-/* Warm key for visor detail */
 var keyLight = new THREE.SpotLight(0xffe8c0, 2.2, 22, Math.PI*0.18, 0.35, 1.5);
 keyLight.position.set(2.5, 4.5, 5);
 scene.add(keyLight);
 
-/* ─────────────────────────────────────────────
-   ENVIRONMENT MAP (r128 compatible)
-   Build a gradient DataTexture and run PMREM on it.
-───────────────────────────────────────────── */
-(function setupEnv(){
+/* ────────────────────────────────────────
+   ENVIRONMENT MAP (r128 — no RoomEnvironment class)
+──────────────────────────────────────── */
+(function(){
   var pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
-
-  var S   = 64;
-  var buf = new Uint8Array(S*S*4);
-  for(var y=0;y<S;y++){
-    for(var x=0;x<S;x++){
-      var i = (y*S+x)*4;
-      var t = y/S;
-      buf[i]   = Math.floor(8  + t*28);
-      buf[i+1] = Math.floor(8  + t*16);
-      buf[i+2] = Math.floor(12 + t*22);
-      buf[i+3] = 255;
-    }
+  var S=64, buf=new Uint8Array(S*S*4);
+  for(var y=0;y<S;y++) for(var x=0;x<S;x++){
+    var i=(y*S+x)*4, t=y/S;
+    buf[i]=8+t*28; buf[i+1]=8+t*16; buf[i+2]=12+t*22; buf[i+3]=255;
   }
-  var tex = new THREE.DataTexture(buf,S,S,THREE.RGBAFormat);
-  tex.needsUpdate = true;
-
-  var rt = pmrem.fromEquirectangular(tex);
-  scene.environment = rt.texture;
-
-  tex.dispose();
-  pmrem.dispose();
+  var tex=new THREE.DataTexture(buf,S,S,THREE.RGBAFormat);
+  tex.needsUpdate=true;
+  scene.environment=pmrem.fromEquirectangular(tex).texture;
+  tex.dispose(); pmrem.dispose();
 })();
 
-/* ─────────────────────────────────────────────
-   MATERIAL FACTORY — Liquid Black Chrome
-───────────────────────────────────────────── */
+/* ────────────────────────────────────────
+   CHROME MATERIAL FACTORY
+──────────────────────────────────────── */
 function chromeMat(){
   return new THREE.MeshStandardMaterial({
     color:           new THREE.Color(0x0d0d0d),
@@ -406,295 +836,400 @@ function chromeMat(){
   });
 }
 
-/* ─────────────────────────────────────────────
+/* ────────────────────────────────────────
    STATE
-───────────────────────────────────────────── */
-var root      = null;   /* THREE.Group wrapping the loaded object */
-var meshes    = [];     /* flat array of all Mesh children */
-var wireOn    = false;
+──────────────────────────────────────── */
+var root   = null;  /* THREE.Group — the scene root */
+var meshes = [];
+var wireOn = false;
+var horizScrollX = 0; /* current horizontal container translate-x value */
 
-/* ─────────────────────────────────────────────
-   ANTI-GRAY GUARD: force chrome on every mesh
-───────────────────────────────────────────── */
+/* ────────────────────────────────────────
+   ANTI-GRAY GUARD
+──────────────────────────────────────── */
 function applyChrome(obj){
-  meshes = [];
+  meshes=[];
   obj.traverse(function(c){
     if(!c.isMesh) return;
     if(c.geometry) c.geometry.computeVertexNormals();
-    c.material      = chromeMat();
-    c.castShadow    = true;
-    c.receiveShadow = true;
+    c.material=chromeMat();
+    c.castShadow=true;
+    c.receiveShadow=true;
     meshes.push(c);
   });
 }
 
-/* ─────────────────────────────────────────────
-   WIREFRAME TOGGLE with GSAP colour transition
-───────────────────────────────────────────── */
+/* ────────────────────────────────────────
+   WIREFRAME TOGGLE
+──────────────────────────────────────── */
 function setWireframe(on){
   if(wireOn===on) return;
-  wireOn = on;
-
-  var hint = document.getElementById('wf-hint');
-  if(hint) hint.classList.toggle('active', on);
-
+  wireOn=on;
+  var hint=document.getElementById('wf-hint');
+  if(hint) hint.classList.toggle('active',on);
   meshes.forEach(function(m){
-    var mat = m.material;
+    var mat=m.material;
     if(on){
-      mat.wireframe = true;
-      if(hasGSAP){
-        gsap.to(mat.color,{r:0.78,g:0.04,b:0.04,duration:0.65,ease:'power2.inOut'});
-        if(root){
-          gsap.to(root.rotation,{y:root.rotation.y+Math.PI,duration:1.05,ease:'power2.inOut',overwrite:'auto'});
-        }
-      } else {
-        mat.color.set(0xcc0a0a);
-      }
+      mat.wireframe=true;
+      if(hasGSAP) gsap.to(mat.color,{r:.78,g:.04,b:.04,duration:.65,ease:'power2.inOut'});
+      else mat.color.set(0xcc0000);
+      if(root && hasGSAP) gsap.to(root.rotation,{y:root.rotation.y+Math.PI,duration:1.05,ease:'power2.inOut',overwrite:'auto'});
     } else {
       if(hasGSAP){
-        gsap.to(mat.color,{r:0.051,g:0.051,b:0.051,duration:0.65,ease:'power2.inOut',
-          onComplete:function(){ mat.wireframe=false; }
-        });
+        gsap.to(mat.color,{r:.051,g:.051,b:.051,duration:.65,ease:'power2.inOut',onComplete:function(){mat.wireframe=false;}});
       } else {
         mat.color.set(0x0d0d0d);
-        mat.wireframe = false;
+        mat.wireframe=false;
       }
     }
   });
 }
 
-/* ─────────────────────────────────────────────
-   LOAD HELMET.GLB — the only 3D model source
-───────────────────────────────────────────── */
-if(typeof THREE.GLTFLoader === 'undefined'){
-  console.warn('[GLADIATOR] THREE.GLTFLoader not found — helmet cannot be loaded');
+/* ────────────────────────────────────────
+   ★ CENTERING ALGORITHM ★
+   Box3 → center → subtract from position
+   Ensures origin is geometrically centred
+──────────────────────────────────────── */
+function centreObject(obj){
+  var box    = new THREE.Box3().setFromObject(obj);
+  var size   = new THREE.Vector3();
+  var center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+
+  /* Normalise scale so longest dimension = 2.6 units */
+  var maxDim = Math.max(size.x, size.y, size.z);
+  var sc     = 2.6 / maxDim;
+  obj.scale.setScalar(sc);
+
+  /* Recompute box after scaling */
+  box.setFromObject(obj);
+  box.getCenter(center);
+
+  /* Subtract center: moves bounding-box center to world origin (0,0,0) */
+  obj.position.sub(center);
+}
+
+/* ────────────────────────────────────────
+   FALLBACK CRYSTAL (anti-blank guarantee)
+──────────────────────────────────────── */
+function spawnCrystal(){
+  console.info('[GLADIATOR] GLB unavailable — fallback crystal');
+  var g = new THREE.Group();
+
+  var oct = new THREE.OctahedronGeometry(1.7, 0);
+  var m1  = new THREE.Mesh(oct, chromeMat());
+  m1.castShadow=true; g.add(m1); meshes.push(m1);
+
+  var ico = new THREE.IcosahedronGeometry(1.0, 1);
+  var m2  = new THREE.Mesh(ico, chromeMat());
+  m2.castShadow=true; g.add(m2); meshes.push(m2);
+
+  var tor  = new THREE.TorusGeometry(2.2, 0.045, 14, 90);
+  var matT = chromeMat(); matT.roughness=0.0;
+  var m3   = new THREE.Mesh(tor, matT);
+  m3.rotation.x=Math.PI*0.5; m3.castShadow=true;
+  g.add(m3); meshes.push(m3);
+
+  /* Centre the group */
+  scene.add(g);
+  var box=new THREE.Box3().setFromObject(g);
+  var cen=new THREE.Vector3(); box.getCenter(cen);
+  g.position.sub(cen);  /* ← mathematically centred at (0,0,0) */
+
+  root=g;
+  if(hasGSAP){
+    root.position.y=-3;
+    gsap.to(root.position,{y:0,duration:1.7,ease:'power3.out',delay:.2});
+    buildScrollTriggers();
+  }
+}
+
+/* ────────────────────────────────────────
+   LOAD GLB
+──────────────────────────────────────── */
+if(typeof THREE.GLTFLoader==='undefined'){
+  console.warn('[GLADIATOR] GLTFLoader missing — fallback');
+  spawnCrystal();
 } else {
-  var loader = new THREE.GLTFLoader();
-  loader.load(
-    './helmet.glb',
-    function(gltf){          /* SUCCESS */
-      var model = gltf.scene;
+  var loader=new THREE.GLTFLoader();
+  loader.load('./helmet.glb',
+    function(gltf){
+      var model=gltf.scene;
 
-      /* Centre + normalise scale */
-      var box    = new THREE.Box3().setFromObject(model);
-      var sz     = new THREE.Vector3();
-      var cen    = new THREE.Vector3();
-      box.getSize(sz);
-      box.getCenter(cen);
-      var maxD   = Math.max(sz.x, sz.y, sz.z);
-      var sc     = 2.7 / maxD;
-      model.scale.setScalar(sc);
-      model.position.sub(cen.multiplyScalar(sc));
-
+      /* ★ MANDATORY CENTERING ★ */
+      centreObject(model);
       applyChrome(model);
 
-      var g = new THREE.Group();
+      var g=new THREE.Group();
       g.add(model);
+      /* Group itself starts at (0,0,0) — centreObject put model there */
       scene.add(g);
-      root = g;
+      root=g;
 
-      /* Entrance */
+      /* Entrance float-in from below */
       if(hasGSAP){
-        root.position.y = -3.0;
-        root.rotation.y = -Math.PI*0.3;
-        gsap.to(root.position,{y:0,duration:1.9,ease:'power3.out',delay:0.3});
-        gsap.to(root.rotation,{y:0,duration:1.9,ease:'power3.out',delay:0.3});
+        root.position.y=-3.2;
+        root.rotation.y=-Math.PI*.3;
+        gsap.to(root.position,{y:0,duration:1.9,ease:'power3.out',delay:.3});
+        gsap.to(root.rotation,{y:0,duration:1.9,ease:'power3.out',delay:.3});
         buildScrollTriggers();
       }
     },
-    undefined,               /* PROGRESS — silent */
-    function(err){           /* ERROR — no fallback geometry */
-      console.warn('[GLADIATOR] GLTFLoader error:', err && err.message ? err.message : err);
+    undefined,
+    function(err){
+      console.warn('[GLADIATOR] GLTFLoader error:',err&&err.message?err.message:err);
+      spawnCrystal();
     }
   );
 }
 
-/* ─────────────────────────────────────────────
+/* ────────────────────────────────────────
    GSAP SCROLLTRIGGER SETUP
-   Called only after root is guaranteed to exist
-───────────────────────────────────────────── */
+──────────────────────────────────────── */
 function buildScrollTriggers(){
   if(!hasGSAP) return;
 
-  /* ── 1. CAMERA Z FLY-THROUGH (scrub) ── */
-  /* Phase A: top of page → 40% down: camera dives toward/through object */
+  /* ── Z FLY-THROUGH ── */
   gsap.to(camera.position,{
-    z: -5,
-    ease: 'none',
-    scrollTrigger:{
-      trigger: 'body',
-      start:   'top top',
-      end:     '40% top',
-      scrub:   1.2
-    }
+    z:-5, ease:'none',
+    scrollTrigger:{trigger:'body',start:'top top',end:'25% top',scrub:1.2}
+  });
+  gsap.to(camera.position,{
+    z:9,y:2,ease:'none',
+    scrollTrigger:{trigger:'#masters',start:'top bottom',end:'top top',scrub:1.2}
+  });
+  gsap.to(camera.position,{
+    z:11,y:-0.5,ease:'none',
+    scrollTrigger:{trigger:'#testimonials',start:'top bottom',end:'bottom top',scrub:1.5}
   });
 
-  /* Phase B: services → masters: pull back and rise */
-  gsap.to(camera.position,{
-    z: 8,
-    y: 2.2,
-    ease: 'none',
-    scrollTrigger:{
-      trigger: '#masters',
-      start:   'top bottom',
-      end:     'top top',
-      scrub:   1.2
-    }
-  });
-
-  /* Phase C: testimonials → footer: slow final drift back */
-  gsap.to(camera.position,{
-    z: 11,
-    y: -0.8,
-    ease: 'none',
-    scrollTrigger:{
-      trigger: '#testimonials',
-      start:   'top bottom',
-      end:     'bottom top',
-      scrub:   1.5
-    }
-  });
-
-  /* ── 2. MODEL RISE during about section ── */
+  /* ── MODEL Y RISE (about) ── */
   if(root){
     gsap.to(root.position,{
-      y: 1.5,
-      ease: 'none',
-      scrollTrigger:{
-        trigger: '#about',
-        start:   'top bottom',
-        end:     'bottom top',
-        scrub:   1.0
-      }
+      y:1.5,ease:'none',
+      scrollTrigger:{trigger:'#about',start:'top bottom',end:'bottom top',scrub:1}
     });
   }
 
-  /* ── 3. WIREFRAME MORPH on #services ── */
-  ScrollTrigger.create({
-    trigger:     '#services',
-    start:       'top 65%',
-    end:         'bottom 35%',
-    onEnter:     function(){ setWireframe(true);  },
-    onLeave:     function(){ setWireframe(false); },
-    onEnterBack: function(){ setWireframe(true);  },
-    onLeaveBack: function(){ setWireframe(false); }
-  });
+  /* ── HORIZONTAL SERVICES SCROLL + HELMET PARALLAX ── */
+  var hc = document.getElementById('horizontal-container');
+  if(hc){
+    /* Total x travel = full width of container minus one viewport width */
+    var getTravel=function(){ return -(hc.scrollWidth - window.innerWidth); };
 
-  /* ── 4. BARREL ROLL on masters entry ── */
-  ScrollTrigger.create({
-    trigger: '#masters',
-    start:   'top 62%',
-    onEnter: function(){
-      if(!root) return;
-      gsap.to(root.rotation,{
-        y: root.rotation.y + Math.PI*2,
-        duration: 1.4,
-        ease: 'power2.inOut',
-        overwrite: 'auto'
-      });
-    }
-  });
+    var hTween = gsap.to(hc,{
+      x: getTravel,
+      ease:'none',
+      scrollTrigger:{
+        trigger:  '#services-section',
+        pin:      '#services-pin',
+        scrub:    1,
+        start:    'top top',
+        end:      '+=3000',
+        invalidateOnRefresh: true,
+        onUpdate: function(self){
+          /* Sync horizontal translate progress to 3D camera X drift */
+          horizScrollX = self.progress;
 
-  /* ── 5. SCALE PULSE on testimonials ── */
-  ScrollTrigger.create({
-    trigger: '#testimonials',
-    start:   'top 68%',
-    once:    true,
-    onEnter: function(){
-      if(!root) return;
-      gsap.fromTo(root.scale,
-        {x:1,y:1,z:1},
-        {x:1.32,y:1.32,z:1.32,duration:0.5,ease:'back.out(2)',yoyo:true,repeat:1}
-      );
-    }
-  });
+          /* Move helmet left along with cards (light parallax at 30% speed) */
+          if(root){
+            var targetX = -horizScrollX * 3.5;
+            root.position.x += (targetX - root.position.x) * 0.06;
+          }
 
-  /* ── 6. BENTO CARD hover → model faces card ── */
-  document.querySelectorAll('.bento-card').forEach(function(card){
-    card.addEventListener('mouseenter', function(){
-      if(!root||wireOn) return;
-      var r    = card.getBoundingClientRect();
-      var norm = ((r.left + r.width*0.5) / window.innerWidth - 0.5) * 2;
-      gsap.to(root.rotation,{
-        y: norm * 0.55,
-        duration: 0.9,
-        ease: 'power2.out',
-        overwrite: 'auto'
+          /* Activate stream particles during horizontal section */
+          var streamCanvas=document.getElementById('stream-canvas');
+          if(streamCanvas){
+            var isActive = self.progress>0.01 && self.progress<0.99;
+            streamCanvas.classList.toggle('active',isActive);
+          }
+
+          /* Update progress pills */
+          var pills=document.querySelectorAll('.cpill');
+          if(pills.length){
+            var activeIdx=Math.min(Math.floor(self.progress*8),7);
+            pills.forEach(function(p,i){
+              p.classList.toggle('cpill-active',i===activeIdx);
+            });
+          }
+
+          /* Hide horizontal indicator once scrolled */
+          var ind=document.getElementById('horiz-indicator');
+          if(ind) ind.style.opacity = self.progress>0.05?'0':'1';
+        }
+      }
+    });
+
+    /* WIREFRAME: activate during horizontal section */
+    ScrollTrigger.create({
+      trigger:'#services-section',
+      start:'top top',
+      end:'+=3000',
+      onEnter:     function(){setWireframe(true);},
+      onLeave:     function(){setWireframe(false);},
+      onEnterBack: function(){setWireframe(true);},
+      onLeaveBack: function(){setWireframe(false);}
+    });
+
+    /* Bento card hover → model faces card */
+    document.querySelectorAll('.bento-card').forEach(function(card){
+      card.addEventListener('mouseenter',function(){
+        if(!root) return;
+        var r=card.getBoundingClientRect();
+        var norm=((r.left+r.width*.5)/window.innerWidth-0.5)*2;
+        gsap.to(root.rotation,{y:norm*.5,duration:.9,ease:'power2.out',overwrite:'auto'});
       });
     });
+  }
+
+  /* ── BARREL ROLL on masters ── */
+  ScrollTrigger.create({
+    trigger:'#masters',start:'top 62%',
+    onEnter:function(){
+      if(!root) return;
+      gsap.to(root.rotation,{y:root.rotation.y+Math.PI*2,duration:1.35,ease:'power2.inOut',overwrite:'auto'});
+    }
+  });
+
+  /* ── SCALE PULSE on testimonials ── */
+  ScrollTrigger.create({
+    trigger:'#testimonials',start:'top 68%',once:true,
+    onEnter:function(){
+      if(!root) return;
+      gsap.fromTo(root.scale,{x:1,y:1,z:1},{x:1.3,y:1.3,z:1.3,duration:.5,ease:'back.out(2)',yoyo:true,repeat:1});
+    }
   });
 }
 
-/* ─────────────────────────────────────────────
+/* ────────────────────────────────────────
    MOUSE PARALLAX
-───────────────────────────────────────────── */
+──────────────────────────────────────── */
 var mNX=0,mNY=0,sNX=0,sNY=0;
 document.addEventListener('mousemove',function(e){
-  mNX = (e.clientX/window.innerWidth  - 0.5)*2;
-  mNY = (e.clientY/window.innerHeight - 0.5)*2;
+  mNX=(e.clientX/window.innerWidth -.5)*2;
+  mNY=(e.clientY/window.innerHeight-.5)*2;
 },{passive:true});
 
-/* ─────────────────────────────────────────────
+/* ────────────────────────────────────────
    RENDER LOOP
-───────────────────────────────────────────── */
-var clock   = new THREE.Clock();
-var elapsed = 0;
+──────────────────────────────────────── */
+var clock=new THREE.Clock(), elapsed=0;
 
 function tick(){
   requestAnimationFrame(tick);
-  var dt = clock.getDelta();
-  elapsed += dt;
+  var dt=clock.getDelta(); elapsed+=dt;
 
-  /* Smooth mouse */
-  sNX += (mNX - sNX)*0.046;
-  sNY += (mNY - sNY)*0.046;
+  sNX+=(mNX-sNX)*.046;
+  sNY+=(mNY-sNY)*.046;
 
-  /* Camera x-axis parallax (overlay on GSAP z) */
-  camera.position.x += (sNX*0.32 - camera.position.x)*0.04;
-  camera.lookAt(0, 0.15, 0);
+  /* Camera X parallax (additive over GSAP z) */
+  camera.position.x+=(sNX*.28-camera.position.x)*.04;
+  camera.lookAt(0,0,0);
 
-  /* Model idle float + gentle auto-rotate */
+  /* Idle float + auto-rotate */
   if(root){
-    root.position.y += Math.sin(elapsed*0.78)*0.0008;
-    if(!wireOn){
-      root.rotation.y += dt*0.11;
-    } else {
-      root.rotation.y += dt*0.05;
-    }
+    root.position.y+=Math.sin(elapsed*.78)*.0008;
+    root.rotation.y+=dt*(wireOn?.05:.10);
   }
 
-  /* Rim light neon flicker */
-  rimLight.intensity  = 5.0 + Math.sin(elapsed*3.5)*0.55 + Math.sin(elapsed*8.1)*0.22;
-  rimLight.position.x = 0.4 + Math.sin(elapsed*0.44)*0.5;
-  rimLight.position.y = 0.8 + Math.cos(elapsed*0.31)*0.32;
+  /* Rim flicker */
+  rimLight.intensity=5+Math.sin(elapsed*3.5)*.55+Math.sin(elapsed*8.1)*.22;
+  rimLight.position.x=.4+Math.sin(elapsed*.44)*.5;
+  rimLight.position.y=.8+Math.cos(elapsed*.31)*.32;
+  dirLight.position.x=-5+Math.sin(elapsed*.18)*1.3;
 
-  /* Dir light slow swing */
-  dirLight.position.x = -5 + Math.sin(elapsed*0.18)*1.3;
-
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
 tick();
 
-/* ─────────────────────────────────────────────
+/* ────────────────────────────────────────
    RESIZE
-───────────────────────────────────────────── */
-window.addEventListener('resize',function(){
-  var nW = window.innerWidth;
-  var nH = window.innerHeight;
-  camera.aspect = nW/nH;
-  camera.updateProjectionMatrix();
-  renderer.setSize(nW, nH);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-},{passive:true});
+──────────────────────────────────────── */
+window.addEventListener('resize',setRendererSize,{passive:true});
 
 })();
 </script>
 
 <script>
-/* ─────────────────────────────────────────────
-   PAGE INTERACTION ENGINE
-   Header hide, scroll bar, reveals, bento tilt, counters
-───────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════
+   DATA STREAM PARTICLE SYSTEM (2D Canvas overlay)
+   Active during horizontal bento scroll section.
+   Particles flow rightward simulating a data stream.
+══════════════════════════════════════════════════ */
+(function(){
+  var sc = document.getElementById('stream-canvas');
+  if(!sc) return;
+  var ctx = sc.getContext('2d');
+
+  function resize(){
+    sc.width  = window.innerWidth;
+    sc.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize, {passive:true});
+
+  var COLS = Math.ceil(window.innerWidth / 22);
+  var drops = [];
+  var CHARS  = '01AxFf9B3D7e⚔️♦◆▲■░▒▓';
+
+  for(var i=0; i<COLS; i++){
+    drops[i] = Math.random() * -100;
+  }
+
+  var speed = 0; /* controlled by scroll progress */
+
+  /* read scroll progress from ST */
+  function getScrollProgress(){
+    var ss = document.getElementById('services-section');
+    if(!ss) return 0;
+    var r  = ss.getBoundingClientRect();
+    var p  = 1 - (r.top / window.innerHeight);
+    return Math.max(0, Math.min(1, p));
+  }
+
+  function drawStream(){
+    /* Only draw when active */
+    if(!sc.classList.contains('active')){
+      requestAnimationFrame(drawStream);
+      return;
+    }
+
+    var W = sc.width, H = sc.height;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.065)';
+    ctx.fillRect(0,0,W,H);
+
+    ctx.font = '13px JetBrains Mono, monospace';
+
+    var prog = getScrollProgress();
+    speed    = 1.5 + prog * 4.5;
+
+    for(var i=0; i<drops.length; i++){
+      var ch    = CHARS[Math.floor(Math.random()*CHARS.length)];
+      var alpha = 0.15 + Math.random()*.55;
+      var r_val = Math.floor(180+Math.random()*76);
+      ctx.fillStyle = 'rgba('+r_val+','+Math.floor(alpha*17)+','+Math.floor(alpha*17)+','+alpha+')';
+      ctx.fillText(ch, i*22, drops[i]*18);
+
+      if(drops[i]*18 > H && Math.random() > 0.975){
+        drops[i] = 0;
+      }
+      drops[i] += speed * .06;
+    }
+
+    requestAnimationFrame(drawStream);
+  }
+
+  drawStream();
+})();
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════
+   PAGE INTERACTION ENGINE v3
+   Header, scroll bar, reveals, bento tilt, counters
+══════════════════════════════════════════════════ */
 (function(){
 'use strict';
 
@@ -702,11 +1237,11 @@ var hasGSAP = typeof gsap!=='undefined' && typeof ScrollTrigger!=='undefined';
 
 /* ── HERO ENTRANCE ── */
 if(hasGSAP){
-  var tl = gsap.timeline({delay:0.28});
-  tl.to('.hero-eyebrow',{opacity:1,y:0,duration:0.68,ease:'power2.out'})
-    .to('#hero-title',  {opacity:1,y:0,duration:1.0, ease:'power3.out'},'-=0.22')
-    .to('.hero-sub',    {opacity:1,    duration:0.72, ease:'power2.out'},'-=0.32')
-    .to('.hero-cta-row',{opacity:1,    duration:0.62, ease:'power2.out'},'-=0.28');
+  var tl=gsap.timeline({delay:.28});
+  tl.to('.hero-eyebrow',{opacity:1,y:0,duration:.68,ease:'power2.out'})
+    .to('#hero-title',  {opacity:1,y:0,duration:1.0, ease:'power3.out'},'-=.22')
+    .to('.hero-sub',    {opacity:1,    duration:.72, ease:'power2.out'},'-=.32')
+    .to('.hero-cta-row',{opacity:1,    duration:.62, ease:'power2.out'},'-=.28');
 } else {
   ['.hero-eyebrow','#hero-title','.hero-sub','.hero-cta-row'].forEach(function(s){
     var el=document.querySelector(s);
@@ -714,23 +1249,23 @@ if(hasGSAP){
   });
 }
 
-/* ── SCROLL BAR ── */
-var scrollBar = document.getElementById('scroll-bar');
+/* ── SCROLL PROGRESS BAR ── */
+var scrollBar=document.getElementById('scroll-bar');
 window.addEventListener('scroll',function(){
-  var tot = document.body.scrollHeight - window.innerHeight;
-  if(tot>0 && scrollBar) scrollBar.style.width=((window.scrollY/tot)*100)+'%';
+  var tot=document.body.scrollHeight-window.innerHeight;
+  if(tot>0&&scrollBar) scrollBar.style.width=((window.scrollY/tot)*100)+'%';
 },{passive:true});
 
-/* ── HEADER HIDE/SHOW ── */
-var header     = document.getElementById('site-header');
-var lastScroll = 0;
+/* ── HEADER HIDE / SHOW ── */
+var header=document.getElementById('site-header');
+var lastScroll=0;
 window.addEventListener('scroll',function(){
-  var cur = window.scrollY;
+  var cur=window.scrollY;
   if(header){
-    if(cur>lastScroll && cur>110) header.classList.add('hide');
-    else                           header.classList.remove('hide');
+    if(cur>lastScroll&&cur>110) header.classList.add('hide');
+    else header.classList.remove('hide');
   }
-  lastScroll = cur;
+  lastScroll=cur;
 },{passive:true});
 
 /* ── SCROLL REVEALS ── */
@@ -744,92 +1279,66 @@ if(hasGSAP){
       scrollTrigger:{trigger:el,start:'top 80%',toggleActions:'play none none none'}});
   });
 
-  /* Bento stagger */
-  ScrollTrigger.create({
-    trigger:'#bento-grid',start:'top 78%',once:true,
-    onEnter:function(){
-      gsap.fromTo('.bento-card',{opacity:0,y:38,scale:.97},{opacity:1,y:0,scale:1,duration:.68,stagger:.07,ease:'power2.out'});
-    }
-  });
+  /* Masters */
+  ScrollTrigger.create({trigger:'.masters-grid',start:'top 78%',once:true,
+    onEnter:function(){gsap.fromTo('.master-card',{opacity:0,x:-28},{opacity:1,x:0,duration:.88,stagger:.14,ease:'power2.out'});}});
 
-  /* Masters stagger */
-  ScrollTrigger.create({
-    trigger:'.masters-grid',start:'top 78%',once:true,
-    onEnter:function(){
-      gsap.fromTo('.master-card',{opacity:0,x:-28},{opacity:1,x:0,duration:.88,stagger:.14,ease:'power2.out'});
-    }
-  });
+  /* Testimonials */
+  ScrollTrigger.create({trigger:'.t-grid',start:'top 78%',once:true,
+    onEnter:function(){gsap.fromTo('.t-card',{opacity:0,y:28},{opacity:1,y:0,duration:.78,stagger:.11,ease:'power2.out'});}});
 
-  /* Testimonials stagger */
-  ScrollTrigger.create({
-    trigger:'.t-grid',start:'top 78%',once:true,
-    onEnter:function(){
-      gsap.fromTo('.t-card',{opacity:0,y:28},{opacity:1,y:0,duration:.78,stagger:.11,ease:'power2.out'});
-    }
-  });
-
-  /* Red rule scaleX */
+  /* Red rules */
   gsap.utils.toArray('.red-rule').forEach(function(el){
     gsap.fromTo(el,{scaleX:0,transformOrigin:'left'},{scaleX:1,duration:1.0,ease:'power3.out',
       scrollTrigger:{trigger:el,start:'top 87%'}});
   });
 
 } else {
-  /* no GSAP fallback */
   ['.rv-up','.rv-lft','.bento-card','.master-card','.t-card'].forEach(function(s){
-    document.querySelectorAll(s).forEach(function(el){el.style.opacity='1';el.style.transform='none';});
+    document.querySelectorAll(s).forEach(function(el){
+      el.style.opacity='1'; el.style.transform='none';
+    });
   });
 }
 
 /* ── STAT COUNTERS ── */
 function runCounters(){
   document.querySelectorAll('.stat-num[data-count]').forEach(function(el){
-    var target  = parseInt(el.getAttribute('data-count'),10);
-    var suffix  = el.getAttribute('data-suffix')||'';
-    var current = 0;
-    var inc     = Math.ceil(target/38);
-    var t = setInterval(function(){
-      current = Math.min(current+inc, target);
-      el.textContent = current+suffix;
-      if(current>=target) clearInterval(t);
-    },30);
+    var target=parseInt(el.getAttribute('data-count'),10);
+    var suffix=el.getAttribute('data-suffix')||'';
+    var cur=0,inc=Math.ceil(target/38);
+    var t=setInterval(function(){cur=Math.min(cur+inc,target);el.textContent=cur+suffix;if(cur>=target)clearInterval(t);},30);
   });
 }
 if(hasGSAP){
   ScrollTrigger.create({trigger:'.stat-row',start:'top 82%',once:true,onEnter:runCounters});
 }
 
-/* ── BENTO TILT + RADIAL GLOW ── */
+/* ── BENTO CARD TILT + RADIAL GLOW (works for horizontal cards too) ── */
 document.querySelectorAll('.bento-card').forEach(function(card){
   var raf=null;
   card.addEventListener('mousemove',function(e){
     if(raf) cancelAnimationFrame(raf);
     raf=requestAnimationFrame(function(){
-      var r  = card.getBoundingClientRect();
-      var x  = e.clientX - r.left;
-      var y  = e.clientY - r.top;
-      var px = (x/r.width)*100;
-      var py = (y/r.height)*100;
-      card.style.setProperty('--bx', px+'%');
-      card.style.setProperty('--by', py+'%');
-      var tX = (y/r.height - 0.5)*-16;
-      var tY = (x/r.width  - 0.5)* 16;
-      card.style.transform = 'perspective(900px) rotateX('+tX+'deg) rotateY('+tY+'deg) scale(1.022)';
+      var r=card.getBoundingClientRect();
+      var x=e.clientX-r.left, y=e.clientY-r.top;
+      var px=(x/r.width)*100, py=(y/r.height)*100;
+      card.style.setProperty('--bx',px+'%');
+      card.style.setProperty('--by',py+'%');
+      var tX=(y/r.height-.5)*-14, tY=(x/r.width-.5)*14;
+      card.style.transform='perspective(900px) rotateX('+tX+'deg) rotateY('+tY+'deg) scale(1.02)';
     });
   });
   card.addEventListener('mouseleave',function(){
     if(raf) cancelAnimationFrame(raf);
     card.style.transform='';
-    card.style.transition='transform .5s cubic-bezier(.4,0,.2,1), border-color .3s ease';
+    card.style.transition='transform .5s cubic-bezier(.4,0,.2,1),border-color .3s ease';
     setTimeout(function(){card.style.transition='';},540);
   });
-  card.addEventListener('mouseenter',function(){
-    card.style.transition='none';
-  });
+  card.addEventListener('mouseenter',function(){card.style.transition='none';});
 });
 
 })();
 </script>
-
 </body>
 </html>
