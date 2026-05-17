@@ -287,14 +287,8 @@ function setLang(lang){
 <script>
 /*
  * ============================================================
- *  GLADIATOR 3D ENGINE v2 — GitHub Pages Production Build
+ *  GLADIATOR 3D ENGINE v2 — Production Build (no fallback geometry)
  *  ============================================================
- *  Load order guarantee:
- *    three.js r128     — sync <script> in <head>
- *    GLTFLoader r128   — sync <script> in <head>
- *    gsap + ST 3.12    — sync <script> in <head>
- *  All four are available by the time this <script> runs.
- * ============================================================
  */
 (function(){
 'use strict';
@@ -371,7 +365,7 @@ keyLight.position.set(2.5, 4.5, 5);
 scene.add(keyLight);
 
 /* ─────────────────────────────────────────────
-   ENVIRONMENT MAP (r128 compatible — no RoomEnvironment)
+   ENVIRONMENT MAP (r128 compatible)
    Build a gradient DataTexture and run PMREM on it.
 ───────────────────────────────────────────── */
 (function setupEnv(){
@@ -470,45 +464,10 @@ function setWireframe(on){
 }
 
 /* ─────────────────────────────────────────────
-   FALLBACK CRYSTAL — immediate render guarantee
-───────────────────────────────────────────── */
-function spawnCrystal(){
-  console.info('[GLADIATOR] GLB unavailable — rendering fallback crystal');
-  var g = new THREE.Group();
-
-  var oct   = new THREE.OctahedronGeometry(1.7, 0);
-  var mOct  = new THREE.Mesh(oct, chromeMat());
-  mOct.castShadow = true;
-  g.add(mOct); meshes.push(mOct);
-
-  var ico   = new THREE.IcosahedronGeometry(1.0, 1);
-  var mIco  = new THREE.Mesh(ico, chromeMat());
-  mIco.castShadow = true;
-  g.add(mIco); meshes.push(mIco);
-
-  var tor   = new THREE.TorusGeometry(2.2, 0.045, 14, 90);
-  var matT  = chromeMat(); matT.roughness = 0.0;
-  var mTor  = new THREE.Mesh(tor, matT);
-  mTor.rotation.x = Math.PI*0.5;
-  mTor.castShadow = true;
-  g.add(mTor); meshes.push(mTor);
-
-  scene.add(g);
-  root = g;
-
-  if(hasGSAP){
-    root.position.y = -3.2;
-    gsap.to(root.position,{y:0,duration:1.7,ease:'power3.out',delay:0.2});
-    buildScrollTriggers();
-  }
-}
-
-/* ─────────────────────────────────────────────
-   LOAD GLB — with cast-iron error handling
+   LOAD HELMET.GLB — the only 3D model source
 ───────────────────────────────────────────── */
 if(typeof THREE.GLTFLoader === 'undefined'){
-  console.warn('[GLADIATOR] THREE.GLTFLoader not found — using fallback');
-  spawnCrystal();
+  console.warn('[GLADIATOR] THREE.GLTFLoader not found — helmet cannot be loaded');
 } else {
   var loader = new THREE.GLTFLoader();
   loader.load(
@@ -544,9 +503,8 @@ if(typeof THREE.GLTFLoader === 'undefined'){
       }
     },
     undefined,               /* PROGRESS — silent */
-    function(err){           /* ERROR — activate fallback */
+    function(err){           /* ERROR — no fallback geometry */
       console.warn('[GLADIATOR] GLTFLoader error:', err && err.message ? err.message : err);
-      spawnCrystal();
     }
   );
 }
